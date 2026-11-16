@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metro Park | Fitting Out</title>
+<style>
+:root{--navy:#102b4e;--blue:#1d4f82;--bg:#f3f6fa;--line:#e2e8f0;--muted:#64748b;--green:#16845b}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:#172b45}
+header{height:64px;background:var(--navy);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:5}
+.brand{font-weight:800;letter-spacing:.08em}.brand small{display:block;font-size:10px;opacity:.7;letter-spacing:.16em}
+.layout{display:flex;min-height:calc(100vh - 64px)}aside{width:225px;background:#fff;border-right:1px solid var(--line);padding:20px 12px}
+nav button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:9px;color:#40536b;font-weight:600;margin:3px 0;cursor:pointer}
+nav button.active,nav button:hover{background:#eaf1f8;color:var(--navy)}
+main{padding:26px;width:100%;max-width:1250px;margin:auto}.mobile-nav{display:none}
+h1{font-size:25px;margin:0 0 5px;color:var(--navy)}.sub{color:var(--muted);margin:0 0 22px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0 24px}
+.card,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 8px #102b4e08}
+.metric{font-size:27px;font-weight:800;color:var(--navy);margin-top:6px}.muted{color:var(--muted);font-size:13px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}.toolbar select,.toolbar input,.toolbar button,.action{padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:white;font:inherit}
+button.primary{background:var(--blue);color:white;border:0;cursor:pointer}.tower-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tower{padding:22px;border:1px solid var(--line);border-radius:13px;background:white;cursor:pointer}.tower:hover{border-color:var(--blue)}
+.floor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:9px}
+.floor-grid button,.unit-grid button{padding:12px 6px;border:1px solid var(--line);background:white;border-radius:9px;cursor:pointer;font-weight:650}
+.unit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:9px}
+.unit-grid button:hover,.floor-grid button:hover{border-color:var(--blue);background:#eef5fc}
+.pill{display:inline-block;background:#e8f6ef;color:var(--green);padding:4px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.hidden{display:none!important}.back{border:0;background:none;color:var(--blue);font-weight:700;cursor:pointer;padding:0;margin-bottom:15px}
+table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted);font-size:12px}
+@media(max-width:760px){header{height:58px;padding:0 16px}.layout{display:block}aside{display:none}main{padding:20px 15px 90px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{padding:14px}.metric{font-size:23px}.tower-grid{grid-template-columns:1fr}.mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);z-index:6;justify-content:space-around;padding:7px 4px calc(7px + env(safe-area-inset-bottom))}.mobile-nav button{border:0;background:none;color:#50627a;font-size:11px;padding:7px 4px}.mobile-nav button span{display:block;font-size:19px}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
+<div class="layout">
+<aside><nav id="sideNav"><button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="tower">▤ Master Tower</button><button data-page="upload">⇧ Upload Dot Matrix</button><button data-page="history">◷ Riwayat Bulanan</button></nav></aside>
+<main>
+<section id="dashboard">
+<h1>Dashboard</h1><p class="sub">Ringkasan status Fitting Out Metro Park</p>
+<div class="cards">
+<div class="card"><div class="muted">Total Unit</div><div class="metric">—</div><div class="muted">Menunggu data master</div></div>
+<div class="card"><div class="muted">Habis Masa Berlaku</div><div class="metric">—</div></div>
+<div class="card"><div class="muted">BAPFO, Deposit Belum Refund</div><div class="metric">—</div></div>
+<div class="card"><div class="muted">Sedang Renovasi</div><div class="metric">—</div><span class="pill">Pantauan aktif</span></div>
+</div>
+<div class="panel"><h3>Mulai dari Master Tower</h3><p class="muted">Pilih tower untuk melihat lantai dan ID unit.</p><button class="primary action" onclick="showPage('tower')">Buka Master Tower</button></div>
+</section>
+<section id="tower" class="hidden">
+<h1>Master Tower</h1><p class="sub">Pilih tower, lalu pilih lantai dan ID unit.</p>
+<div id="towerPick" class="tower-grid">
+<div class="tower" onclick="pickTower('Manhattan','MA')"><h2>Manhattan</h2><p class="muted">Kode tower: MA</p></div>
+<div class="tower" onclick="pickTower('Milan','MI')"><h2>Milan</h2><p class="muted">Kode tower: MI</p></div>
+</div>
+<div id="floorView" class="hidden"><button class="back" onclick="backTower()">← Kembali ke tower</button><h2 id="towerTitle"></h2><p class="muted">Pilih lantai</p><div class="floor-grid" id="floors"></div></div>
+<div id="unitView" class="hidden"><button class="back" onclick="backFloor()">← Kembali ke lantai</button><h2 id="floorTitle"></h2><p class="muted">Pilih ID Unit</p><div class="unit-grid" id="units"></div></div>
+<div id="statusView" class="hidden"><button class="back" onclick="backUnits()">← Kembali ke unit</button><h2 id="unitTitle"></h2><div class="panel"><div class="muted">Status Fitting Out</div><h3>Belum ada data Dot Matrix</h3><p class="muted">Status akan tampil setelah file bulanan diunggah dan diproses.</p></div></div>
+</section>
+<section id="upload" class="hidden"><h1>Upload Dot Matrix</h1><p class="sub">Unggah file bulanan untuk simulasi alur pembaruan data.</p><div class="panel"><label><b>Pilih file Dot Matrix</b><p class="muted">Format Excel (.xls / .xlsx)</p><input id="file" type="file" accept=".xls,.xlsx"></label><div class="toolbar"><button class="primary" onclick="previewFile()">Preview upload</button></div><div id="preview" class="muted">Belum ada file dipilih.</div></div></section>
+<section id="history" class="hidden"><h1>Riwayat Bulanan</h1><p class="sub">Arsip upload Dot Matrix per periode.</p><div class="panel"><p class="muted">Belum ada riwayat upload. Riwayat akan muncul setelah data bulanan diproses.</p></div></section>
+</main></div>
+<div class="mobile-nav"><button onclick="showPage('dashboard')"><span>▦</span>Dashboard</button><button onclick="showPage('tower')"><span>▤</span>Tower</button><button onclick="showPage('upload')"><span>⇧</span>Upload</button><button onclick="showPage('history')"><span>◷</span>Riwayat</button></div>
+<script>
+const pages=['dashboard','tower','upload','history'];let towerCode='',towerName='',floor='';
+function showPage(p){pages.forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==p));document.querySelectorAll('#sideNav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));}
+document.querySelectorAll('#sideNav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+const floorList=['37','36','35','33','32','31','30','29','28','27','26','25','23','21','20','19','18','17','16','15','12','11','10','9','8','7','6','5','3','2','1','UG','LG'];
+function pickTower(n,c){towerName=n;towerCode=c;document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden');document.getElementById('towerTitle').textContent=n;document.getElementById('floors').innerHTML='';floorList.forEach(f=>{let b=document.createElement('button');b.textContent=f;b.onclick=()=>pickFloor(f);document.getElementById('floors').appendChild(b)});}
+function backTower(){document.getElementById('towerPick').classList.remove('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.add('hidden');}
+const unitCodes=['AA','AB','AC','AD','AE','AF','AG','AH','AJ','AK','AL','AM','BA','BB','BC','BCA','BD','BDA','BE','BEA','BF','BFA','BG','BH','BJ','BK','BL','BM'];
+function pickFloor(f){floor=f;document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');document.getElementById('floorTitle').textContent=towerName+' · Lantai '+f;let box=document.getElementById('units');box.innerHTML='';let ids=(f==='UG')?Array.from({length:35},(_,i)=>String(i+1).padStart(2,'0')):unitCodes;ids.forEach(code=>{let id=towerCode+'/'+f+'/'+code;let b=document.createElement('button');b.textContent=id;b.onclick=()=>pickUnit(id);box.appendChild(b)})}
+function backFloor(){document.getElementById('unitView').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden')}
+function pickUnit(id){document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id}
+function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
+function previewFile(){let f=document.getElementById('file').files[0];document.getElementById('preview').textContent=f?'File dipilih: '+f.name+'. Ini baru simulasi; pembacaan simbol Excel belum diaktifkan.':'Pilih file terlebih dahulu.'}
+</script>
+</body></html>
