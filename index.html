@@ -372,7 +372,7 @@ function mpCopyWhatsApp(){
   }
   lines.push('');
  }
- const result=lines.join('\\n').trim();
+ const result=lines.join('\n').trim();
  if(navigator.clipboard&&window.isSecureContext){
   navigator.clipboard.writeText(result).then(()=>alert('Plotting berhasil disalin. Tempel di WhatsApp.')).catch(()=>mpCopyFallback(result));
  }else mpCopyFallback(result);
