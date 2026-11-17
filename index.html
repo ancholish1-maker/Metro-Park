@@ -60,7 +60,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 <section id="plotting" class="hidden"><h1>Plottingan Teknisi</h1><p class="sub">Kelola pekerjaan teknisi; tersimpan sementara di browser perangkat ini.</p><div class="panel"><div class="toolbar"><button class="primary" onclick="mpAddJob()">+ Tambah pekerjaan</button><button onclick="mpPasteJobs()">Paste WhatsApp</button><input id="mpJobSearch" placeholder="Cari teknisi / unit / pekerjaan" oninput="mpRenderJobs()"><select id="mpJobFilter" onchange="mpRenderJobs()"><option value="">Semua status</option><option>On Schedule</option><option>On Progress</option><option>Done</option></select></div><div id="mpJobList"></div></div></section></main></div>
 <div class="mobile-nav"><button onclick="showPage('dashboard')"><span>▦</span>Dashboard</button><button onclick="showPage('tower')"><span>▤</span>Tower</button><button onclick="showPage('upload')"><span>⇧</span>Upload</button><button onclick="showPage('history')"><span>◷</span>Riwayat</button></div>
 <script>
-const pages=['dashboard','tower','upload','history'];let towerCode='',towerName='',floor='';
+const pages=['dashboard','tower','upload','history', 'plotting'];let towerCode='',towerName='',floor='';
 function showPage(p){pages.forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==p));document.querySelectorAll('#sideNav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));}
 document.querySelectorAll('#sideNav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 const floorList=['37','36','35','33','32','31','30','29','28','27','26','25','23','21','20','19','18','17','16','15','12','11','10','9','8','7','6','5','3','2','1','UG','LG'];
