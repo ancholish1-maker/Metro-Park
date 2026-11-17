@@ -318,6 +318,8 @@ function mpStatusKey(item){
 function mpOpenStatus(key){
  if(!Object.hasOwn(mpStatusLabels,key))return;
  const box=document.getElementById('mp-status-list'),list=document.getElementById('mp-status-list-items');
+ if(!box.classList.contains('hidden') && window.mpOpenStatusKey===key){mpCloseStatus();return;}
+ window.mpOpenStatusKey=key;
  const selected=document.querySelector('.dash-clickable[data-status="'+key+'"]');
  if(selected){
   const grid=selected.closest('.dash-cards');
@@ -353,7 +355,7 @@ function mpOpenStatus(key){
  }
  box.classList.remove('hidden');requestAnimationFrame(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}));
 }
-function mpCloseStatus(){document.getElementById('mp-status-list').classList.add('hidden');document.querySelectorAll('.dash-clickable').forEach(card=>card.setAttribute('aria-expanded','false'))}
+function mpCloseStatus(){window.mpOpenStatusKey=null;document.getElementById('mp-status-list').classList.add('hidden');document.querySelectorAll('.dash-clickable').forEach(card=>card.setAttribute('aria-expanded','false'))}
 
 async function mpLoadHistory(){
  const box=document.getElementById('mp-history-list');if(!box)return;
