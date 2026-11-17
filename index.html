@@ -109,9 +109,26 @@ async function pickFloor(f) {
 function backFloor(){document.getElementById('unitView').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden')}
 function pickUnit(id){document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id}
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
-function previewFile(){const f=document.getElementById('file').files[0];const p=document.getElementById('preview');if(!f){p.textContent='Pilih file terlebih dahulu.';return;}p.textContent='File terpilih: '+f.name+'. Menyiapkan pembacaan Excel...';}
+async function previewFile(){
+ const f=document.getElementById('file').files[0],p=document.getElementById('preview');
+ if(!f){p.textContent='Pilih file terlebih dahulu.';return;}
+ if(!window.XLSX){p.textContent='Library Excel belum termuat. Muat ulang halaman.';return;}
+ p.textContent='Sedang membaca Excel...';
+ try{
+  const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellStyles:true});
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let html='<b>Berhasil membaca: '+esc(f.name)+'</b>';
+  wb.SheetNames.forEach(n=>{
+   const ws=wb.Sheets[n], rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+   const filled=rows.reduce((a,r)=>a+r.filter(v=>String(v).trim()!=='').length,0);
+   html+='<div style="padding:12px;margin-top:10px;border:1px solid #e2e8f0;border-radius:9px"><b>'+esc(n)+'</b><div class="muted">Rentang '+esc(ws['!ref']||'-')+' · '+rows.length+' baris · '+filled+' sel berisi</div></div>';
+  });
+  p.innerHTML=html+'<p class="muted">Ini baru pemeriksaan isi dan struktur sheet. Belum menyimpan atau memperbarui data status.</p>';
+ }catch(e){p.textContent='Gagal membaca file: '+(e.message||e);}
+}
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
