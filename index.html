@@ -73,4 +73,106 @@ function pickUnit(id){document.getElementById('unitView').classList.add('hidden'
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
 function previewFile(){let f=document.getElementById('file').files[0];document.getElementById('preview').textContent=f?'File dipilih: '+f.name+'. Ini baru simulasi; pembacaan simbol Excel belum diaktifkan.':'Pilih file terlebih dahulu.'}
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body.mp-locked > :not(#mp-login) { display: none !important; }
+#mp-login {
+  position: fixed; inset: 0; z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  background: #101827; color: white; font-family: Arial, sans-serif;
+}
+#mp-login .panel {
+  width: min(90%, 360px); padding: 28px;
+  background: #1e293b; border-radius: 14px;
+}
+#mp-login input, #mp-login button {
+  box-sizing: border-box; width: 100%; padding: 12px;
+  margin-top: 12px; border-radius: 7px; border: 0;
+}
+#mp-login button { background: #2563eb; color: white; font-weight: bold; }
+#mp-error { color: #fca5a5; font-size: 13px; }
+#mp-logout {
+  position: fixed; right: 12px; top: 12px; z-index: 9999;
+  padding: 9px 13px; background: #dc2626; color: white;
+  border: 0; border-radius: 7px;
+}
+</style>
+
+<div id="mp-login">
+  <div class="panel">
+    <h2>METRO PARK</h2>
+    <p>Login Admin / Staff</p>
+    <form id="mp-form">
+      <input id="mp-email" type="email" placeholder="Email" required>
+      <input id="mp-password" type="password" placeholder="Password" required>
+      <button type="submit">LOGIN</button>
+      <p id="mp-error"></p>
+    </form>
+  </div>
+</div>
+
+<script>
+document.body.classList.add("mp-locked");
+
+const MP_URL = "https://ovkwutrqifpaitqwvgpx.supabase.co";
+const MP_KEY = "sb_publishable_JC50ZnuvKq1sLsIAZeoLqQ_X1-jol_n";
+const mpClient = window.supabase.createClient(MP_URL, MP_KEY);
+
+async function mpCheck(user) {
+  const { data, error } = await mpClient
+    .from("profiles")
+    .select("role,is_active")
+    .eq("id", user.id)
+    .single();
+
+  if (error || !data || !data.is_active ||
+      !["admin", "staff"].includes(data.role)) {
+    await mpClient.auth.signOut();
+    throw new Error("Akun tidak aktif atau tidak memiliki akses.");
+  }
+
+  document.body.classList.remove("mp-locked");
+  document.getElementById("mp-login").style.display = "none";
+
+  if (!document.getElementById("mp-logout")) {
+    const btn = document.createElement("button");
+    btn.id = "mp-logout";
+    btn.textContent = "LOGOUT";
+    btn.onclick = async () => {
+      await mpClient.auth.signOut();
+      location.reload();
+    };
+    document.body.appendChild(btn);
+  }
+}
+
+document.getElementById("mp-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const errorBox = document.getElementById("mp-error");
+  errorBox.textContent = "Memeriksa akun...";
+
+  try {
+    const { data, error } = await mpClient.auth.signInWithPassword({
+      email: document.getElementById("mp-email").value,
+      password: document.getElementById("mp-password").value
+    });
+    if (error) throw error;
+    await mpCheck(data.user);
+  } catch (err) {
+    errorBox.textContent = err.message || "Login gagal.";
+  }
+});
+
+(async () => {
+  const { data } = await mpClient.auth.getSession();
+  if (data.session) {
+    try { await mpCheck(data.session.user); }
+    catch (err) {
+      document.getElementById("mp-error").textContent = err.message;
+    }
+  }
+})();
+</script>
 </body></html>
