@@ -156,7 +156,7 @@ body.mp-locked > :not(#mp-login) { display: none !important; }
     <h2>METRO PARK</h2>
     <p>Login Admin / Staff</p>
     <form id="mp-form">
-      <input id="mp-email" type="email" placeholder="Email" required>
+      <input id="mp-email" type="text" placeholder="Username / ID" autocomplete="username" required>
       <input id="mp-password" type="password" placeholder="Password" required>
       <button type="submit">LOGIN</button>
       <p id="mp-error"></p>
@@ -207,7 +207,7 @@ document.getElementById("mp-form").addEventListener("submit", async e => {
 
   try {
     const { data, error } = await mpClient.auth.signInWithPassword({
-      email: document.getElementById("mp-email").value,
+      email: document.getElementById("mp-email").value.trim().toLowerCase()==="olish-spv" ? "ancholish@gmail.com" : document.getElementById("mp-email").value.trim(),
       password: document.getElementById("mp-password").value
     });
     if (error) throw error;
