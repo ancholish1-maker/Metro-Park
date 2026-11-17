@@ -62,7 +62,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 <div id="statusView" class="hidden"><button class="back" onclick="backUnits()">← Kembali ke unit</button><h2 id="unitTitle"></h2><div class="panel"><div class="muted">Status Fitting Out</div><h3 id="mp-unit-status">Memuat status...</h3><div class="unit-summary"><div class="unit-symbol" id="mp-unit-symbol">—</div><div class="unit-meta" id="mp-unit-detail">Mengambil data arsip terbaru.</div></div><details class="unit-legend"><summary>Lihat keterangan simbol</summary><dl><dt>○</dt><dd>Sudah habis masa berlaku</dd><dt>●</dt><dd>Sudah BAPFO, deposit belum refund</dd><dt>R</dt><dd>Deposit sudah refund</dd><dt>V</dt><dd>Batal renovasi</dd><dt>▨</dt><dd>Sel diarsir: sedang renovasi</dd></dl><p class="unit-note">Simbol gabungan seperti R○ atau R● menunjukkan beberapa kejadian renovasi. Jika sel diarsir, statusnya sedang renovasi.</p></details></div></div>
 </section>
 <section id="upload" class="hidden"><h1>Upload Dot Matrix</h1><p class="sub">Baca simbol dan arsiran dari file Excel. Preview belum menyimpan ke database.</p><div class="panel"><label><b>Pilih file Dot Matrix</b><p class="muted">Format Excel (.xls / .xlsx)</p><input id="file" type="file" accept=".xlsx"></label><div class="toolbar"><button class="primary" onclick="previewFile()">Preview upload</button></div><div id="preview" class="muted">Belum ada file dipilih.</div><div class="toolbar"><label for="mp-period">Periode bulan</label><input type="month" id="mp-period" value="2026-11"><label for="mp-fasum">Tambahan FASUM</label><input type="number" id="mp-fasum" min="0" step="1" value="10" style="width:80px"><button class="primary action" id="mp-save" onclick="mpSaveMonthly()" disabled>Simpan arsip bulanan</button></div><p class="muted">Arsip tiap bulan tersimpan terpisah. Periode yang sama tidak ditimpa.</p></div></section>
-<section id="history" class="hidden"><h1>Riwayat Bulanan</h1><p class="sub">Arsip upload Dot Matrix per periode.</p><div class="panel" id="mp-history-list"><p class="muted">Memuat riwayat bulanan...</p></div></section>
+<section id="history" class="hidden"><h1>Riwayat Bulanan</h1><p class="sub">Arsip upload Dot Matrix per periode.</p><div id="mp-history-detail" class="panel hidden" style="margin:12px 0"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h3 id="mp-history-title" style="margin:0">Detail Periode</h3><button onclick="mpCloseMonth()">Tutup ×</button></div><p class="muted" id="mp-history-count"></p><div id="mp-history-units" class="mp-status-items"></div></div><div class="panel" id="mp-history-list"><p class="muted">Memuat riwayat bulanan...</p></div></section>
 <section id="plotting" class="hidden"><h1>Plottingan Teknisi</h1><p class="sub">Kelola pekerjaan teknisi; tersimpan sementara di browser perangkat ini.</p><div class="panel"><div class="toolbar"><button class="primary" onclick="mpAddJob()">+ Tambah pekerjaan</button><button onclick="mpPasteJobs()">Paste WhatsApp</button><input id="mpJobSearch" placeholder="Cari teknisi / unit / pekerjaan" oninput="mpRenderJobs()"><select id="mpJobFilter" onchange="mpRenderJobs()"><option value="">Semua status</option><option>On Schedule</option><option>On Progress</option><option>Done</option></select></div><p id="mpJobNotice" class="muted">Login untuk memuat pekerjaan dari database.</p><div id="mpJobList"></div></div></section></main></div>
 <div class="mobile-nav"><button onclick="showPage('dashboard')"><span>▦</span>Dashboard</button><button onclick="showPage('tower')"><span>▤</span>Tower</button><button onclick="showPage('upload')"><span>⇧</span>Upload</button><button onclick="showPage('history')"><span>◷</span>Riwayat</button><button onclick="showPage('plotting')"><span>▣</span>Plotting</button></div>
 <script>
@@ -117,7 +117,7 @@ async function pickUnit(id){
  document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id;
  const status=document.getElementById('mp-unit-status'),detail=document.getElementById('mp-unit-detail');
  status.textContent='Memuat status...';detail.textContent='Mengambil data arsip terbaru.';
- const {data,error}=await mpClient.from('monthly_imports').select('period,snapshot').is('deleted_at',null).order('period',{ascending:false}).order('uploaded_at',{ascending:false}).limit(1);
+ const {data,error}=window.mpHistoricalMonth ? {data:[window.mpHistoricalMonth],error:null} : await mpClient.from('monthly_imports').select('period,snapshot').is('deleted_at',null).order('period',{ascending:false}).order('uploaded_at',{ascending:false}).limit(1);
  if(error){status.textContent='Gagal memuat status';detail.textContent=error.message;return}
  if(!data?.length){status.textContent='Belum ada arsip Dot Matrix';detail.textContent='Unggah dan simpan data bulanan terlebih dahulu.';return}
  const month=data[0],record=(Array.isArray(month.snapshot)?month.snapshot:[]).find(x=>x.unit_id===id);
@@ -128,7 +128,7 @@ async function pickUnit(id){
  detail.textContent='Periode '+month.period.slice(0,7)+' · '+(record.renovation_count||1)+' kejadian renovasi';
  detail.style.whiteSpace='normal';
 }
-function backUnits(){document.getElementById('statusView').classList.add('hidden');if(window.mpFromDashboard){window.mpFromDashboard=false;showPage('dashboard');document.getElementById('towerPick').classList.remove('hidden');document.getElementById('unitView').classList.add('hidden');}else document.getElementById('unitView').classList.remove('hidden')}
+function backUnits(){document.getElementById('statusView').classList.add('hidden');if(window.mpHistoricalMonth){window.mpHistoricalMonth=null;showPage('history');document.getElementById('unitView').classList.add('hidden');document.getElementById('towerPick').classList.remove('hidden');return;}if(window.mpFromDashboard){window.mpFromDashboard=false;showPage('dashboard');document.getElementById('towerPick').classList.remove('hidden');document.getElementById('unitView').classList.add('hidden');}else document.getElementById('unitView').classList.remove('hidden')}
 async function previewFile(){
  const f=document.getElementById('file').files[0],box=document.getElementById('preview');
  if(!f){box.textContent='Pilih file terlebih dahulu.';return}
@@ -375,7 +375,7 @@ async function mpLoadHistory(){
  document.getElementById('mp-total-renovasi').textContent='—';document.getElementById('mp-current-period').textContent='Belum ada arsip';document.getElementById('mp-dashboard-period').textContent='Belum ada data';
  for(const key of ['active','expired','bapfo','refund','cancel'])document.getElementById('mp-dash-'+key).textContent='—';
 }
- box.innerHTML=active.length?active.map(x=>'<div class="card" style="margin:8px 0"><b>'+mpEscape(x.period.slice(0,7))+'</b><p class="muted">'+mpEscape(x.file_name||'Excel')+' · Total renovasi: '+(Number(x.renovation_events||0)+Number(x.fasum_events||0))+'</p><button onclick="mpShowMonth(\''+x.id+'\')">Lihat data</button> '+(mpIsAdmin?'<button onclick="mpTrashMonth(\''+x.id+'\')">Hapus ke sampah</button>':'')+'</div>').join(''):'<p class="muted">Belum ada arsip bulanan tersimpan.</p>';
+ box.innerHTML=active.length?active.map(x=>'<div class="card" data-month-id="'+x.id+'" style="margin:8px 0"><b>'+mpEscape(x.period.slice(0,7))+'</b><p class="muted">'+mpEscape(x.file_name||'Excel')+' · Total renovasi: '+(Number(x.renovation_events||0)+Number(x.fasum_events||0))+'</p><button onclick="mpShowMonth(\''+x.id+'\')">Lihat data</button> '+(mpIsAdmin?'<button onclick="mpTrashMonth(\''+x.id+'\')">Hapus ke sampah</button>':'')+'</div>').join(''):'<p class="muted">Belum ada arsip bulanan tersimpan.</p>';
  window.mpMonthRecords=active;
 }
 async function mpSaveMonthly(){
@@ -396,8 +396,26 @@ async function mpSaveMonthly(){
 }
 function mpShowMonth(id){
  const x=(window.mpMonthRecords||[]).find(r=>r.id===id);if(!x)return;
- alert('Periode '+x.period.slice(0,7)+'\nUnit dengan status: '+(x.snapshot?.length||0)+'\nTotal renovasi: '+(Number(x.renovation_events||0)+Number(x.fasum_events||0)));
+ const host=document.getElementById('mp-history-detail');
+ if(window.mpOpenMonthId===id&&!host.classList.contains('hidden')){host.classList.add('hidden');window.mpOpenMonthId=null;return;}
+ window.mpOpenMonthId=id;
+ const rows=Array.isArray(x.snapshot)?x.snapshot:[];
+ document.getElementById('mp-history-title').textContent=new Date(x.period.slice(0,7)+'-01T12:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'});
+ document.getElementById('mp-history-count').textContent=rows.length+' unit tercatat · '+(Number(x.renovation_events||0)+Number(x.fasum_events||0))+' kejadian renovasi termasuk FASUM';
+ const list=document.getElementById('mp-history-units');list.replaceChildren();
+ for(const item of [...rows].sort((a,b)=>a.unit_id.localeCompare(b.unit_id,undefined,{numeric:true}))){
+  const btn=document.createElement('button');btn.className='mp-status-row';
+  const info=document.createElement('span'),name=document.createElement('strong'),meta=document.createElement('small');
+  name.textContent=item.unit_id;meta.textContent=(item.sedang_renovasi?'Sedang renovasi':item.status||'Status tidak diketahui')+' · '+(item.symbol||'—');
+  info.append(name,meta);const arrow=document.createElement('span');arrow.textContent='›';btn.append(info,arrow);
+  btn.onclick=()=>{window.mpHistoricalMonth=x;window.mpFromDashboard=false;showPage('tower');document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');pickUnit(item.unit_id);window.scrollTo(0,0)};
+  list.appendChild(btn);
+ }
+ const card=document.querySelector('[data-month-id="'+id+'"]');
+ if(card)card.insertAdjacentElement('afterend',host);
+ host.classList.remove('hidden');host.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+function mpCloseMonth(){document.getElementById('mp-history-detail').classList.add('hidden');window.mpOpenMonthId=null;}
 async function mpTrashMonth(id){
  if(!mpIsAdmin||!confirm('Pindahkan arsip bulan ini ke tempat sampah?'))return;
  const {error}=await mpClient.from('monthly_imports').update({deleted_at:new Date().toISOString()}).eq('id',id);
