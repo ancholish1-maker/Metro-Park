@@ -119,7 +119,7 @@ async function previewFile(){
   const data=await mpReadMatrix(f);
   window.mpMatrixPreview=data;
   const counts={};for(const x of data.rows)counts[x.status]=(counts[x.status]||0)+1;
-  const lines=['Preview '+f.name+': '+data.rows.length+' unit pernah renovasi; '+data.renovation_events+' kejadian renovasi unit; '+(data.renovation_events+10)+' termasuk 10 FASUM (belum disimpan).',...Object.entries(counts).map(([k,v])=>k+': '+v),'Peringatan: '+data.warnings.length,...data.warnings.slice(0,15)];
+  const lines=['Total renovasi (termasuk FASUM): '+(data.renovation_events+10),'Preview belum disimpan.','Peringatan pembacaan: '+data.warnings.length,...data.warnings.slice(0,15)];
   box.textContent=lines.join('\n');box.style.whiteSpace='pre-wrap';
  }catch(err){box.textContent='Gagal membaca Excel: '+err.message}
 }
