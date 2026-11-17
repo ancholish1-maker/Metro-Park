@@ -30,7 +30,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 @media(max-width:760px){header{height:58px;padding:0 16px}.layout{display:block}aside{display:none}main{padding:20px 15px 90px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{padding:14px}.metric{font-size:23px}.tower-grid{grid-template-columns:1fr}.mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);z-index:6;justify-content:space-around;padding:7px 4px calc(7px + env(safe-area-inset-bottom))}.mobile-nav button{border:0;background:none;color:#50627a;font-size:11px;padding:7px 4px}.mobile-nav button span{display:block;font-size:19px}h1{font-size:22px}}
 .unit-summary{display:flex;align-items:center;gap:14px;margin:16px 0;padding:15px;background:#f5f8fc;border:1px solid var(--line);border-radius:12px}.unit-symbol{display:grid;place-items:center;min-width:64px;min-height:64px;padding:8px;border-radius:12px;background:#e6effb;color:var(--navy);font-size:28px;font-weight:800;overflow-wrap:anywhere}.unit-meta{font-size:13px;color:var(--muted);line-height:1.6}.unit-legend{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}.unit-legend summary{cursor:pointer;font-weight:700;color:var(--blue)}.unit-legend dl{display:grid;grid-template-columns:38px 1fr;gap:10px 12px;margin:15px 0 8px;font-size:13px}.unit-legend dt{font-weight:800;font-size:18px;text-align:center;background:#f1f5fa;border-radius:7px}.unit-legend dd{margin:0;align-self:center}.unit-note{font-size:12px;color:var(--muted);margin:10px 0 0}
 .dashboard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}.dashboard-period{display:inline-flex;align-items:center;padding:7px 11px;background:#e8eff8;border:1px solid #d9e5f2;border-radius:999px;color:var(--blue);font-size:12px;font-weight:700;white-space:nowrap}.dash-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0 20px}.dash-stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px;min-width:0;box-shadow:0 2px 8px #102b4e08}.dash-stat.primary-stat{grid-column:1/-1;background:linear-gradient(135deg,#123458,#1c5180);color:#fff;border:0;padding:23px}.dash-stat-label{font-size:13px;color:#64748b;font-weight:600;line-height:1.4}.primary-stat .dash-stat-label,.primary-stat .dash-stat-foot{color:#d7e5f3}.dash-stat-value{font-size:30px;font-weight:800;line-height:1.15;margin:10px 0 7px;font-variant-numeric:tabular-nums;color:var(--navy)}.primary-stat .dash-stat-value{font-size:46px;color:#fff}.dash-stat-foot{font-size:12px;color:#7b899d}.dash-section-title{font-size:16px;color:var(--navy);margin:24px 0 12px}.dash-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dash-quick button{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:8px;padding:15px;border:1px solid var(--line);border-radius:13px;background:white;color:var(--navy);font:600 13px/1.4 system-ui;cursor:pointer}.dash-quick button span{font-size:20px;color:var(--blue)}@media(min-width:761px){.dash-cards{grid-template-columns:repeat(4,minmax(0,1fr))}.dash-stat.primary-stat{grid-column:span 2}.dash-quick{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:380px){.dashboard-head{flex-wrap:wrap}.dash-stat{padding:13px}.dash-stat-value{font-size:26px}}
-.dash-clickable{cursor:pointer;transition:border-color .15s,transform .15s}.dash-clickable:hover,.dash-clickable:focus-visible{border-color:#2b659e;outline:2px solid #a9c9e8;outline-offset:1px}.dash-clickable:active{transform:scale(.99)}.dash-clickable .dash-stat-foot:after{content:" · Ketuk lihat unit";color:var(--blue)}.mp-status-items{display:grid;gap:8px;max-height:55vh;overflow:auto}.mp-status-row{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:13px 14px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;color:var(--navy);font:inherit;cursor:pointer}.mp-status-row strong{display:block;font-size:14px}.mp-status-row small{display:block;color:var(--muted);margin-top:3px}.mp-status-row:hover{border-color:var(--blue)} .dash-cards:has(#mp-status-list:not(.hidden)){align-items:start}.dash-cards #mp-status-list{grid-column:1/-1;margin:0!important}.dash-clickable[aria-expanded="true"]{border-color:#2b659e;background:#f0f6fc}.dash-clickable[aria-expanded="true"] .dash-stat-foot:after{content:" · Daftar terbuka"} </style>
+.dash-clickable{cursor:pointer;transition:border-color .15s,transform .15s}.dash-clickable:hover,.dash-clickable:focus-visible{border-color:#2b659e;outline:2px solid #a9c9e8;outline-offset:1px}.dash-clickable:active{transform:scale(.99)}.dash-clickable .dash-stat-foot:after{content:" · Ketuk lihat unit";color:var(--blue)}.mp-status-items{display:grid;gap:8px;max-height:55vh;overflow:auto}.mp-status-row{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:13px 14px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;color:var(--navy);font:inherit;cursor:pointer}.mp-status-row strong{display:block;font-size:14px}.mp-status-row small{display:block;color:var(--muted);margin-top:3px}.mp-status-row:hover{border-color:var(--blue)} .dash-cards:has(#mp-status-list:not(.hidden)){align-items:start}.dash-cards #mp-status-list{grid-column:1/-1;grid-row:auto;margin:0!important;width:100%;min-width:0}.dash-clickable[aria-expanded="true"]{border-color:#2b659e;background:#f0f6fc}.dash-clickable[aria-expanded="true"] .dash-stat-foot:after{content:" · Daftar terbuka"} </style>
 </head>
 <body>
 <header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
@@ -319,7 +319,24 @@ function mpOpenStatus(key){
  if(!Object.hasOwn(mpStatusLabels,key))return;
  const box=document.getElementById('mp-status-list'),list=document.getElementById('mp-status-list-items');
  const selected=document.querySelector('.dash-clickable[data-status="'+key+'"]');
- if(selected&&box.previousElementSibling!==selected)selected.insertAdjacentElement('afterend',box);
+ if(selected){
+  const grid=selected.closest('.dash-cards');
+  const cards=Array.from(grid.children).filter(el=>el.classList.contains('dash-stat'));
+  const selectedIndex=cards.indexOf(selected);
+  const columns=window.matchMedia('(min-width: 761px)').matches?4:2;
+  // Primary stat spans two columns on phones and two columns on desktop.
+  let row=0,used=0,selectedRow=0,lastInRow=selected;
+  const rows=[];
+  for(const card of cards){
+   const span=card.classList.contains('primary-stat')?2:1;
+   if(used+span>columns){row++;used=0;}
+   if(!rows[row])rows[row]=[];
+   rows[row].push(card);used+=span;
+   if(card===selected)selectedRow=row;
+  }
+  lastInRow=rows[selectedRow][rows[selectedRow].length-1];
+  lastInRow.insertAdjacentElement('afterend',box);
+ }
  document.querySelectorAll('.dash-clickable').forEach(card=>card.setAttribute('aria-expanded',String(card===selected)));
  const rows=(window.mpLatestUnitStatuses||[]).filter(item=>mpStatusKey(item)===key).sort((a,b)=>a.unit_id.localeCompare(b.unit_id,undefined,{numeric:true}));
  document.getElementById('mp-status-list-title').textContent=mpStatusLabels[key];
@@ -334,7 +351,7 @@ function mpOpenStatus(key){
  b.onclick=()=>{window.mpFromDashboard=true;showPage('tower');document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');pickUnit(item.unit_id);window.scrollTo(0,0)};
  list.appendChild(b);
  }
- box.classList.remove('hidden');box.scrollIntoView({behavior:'smooth',block:'start'});
+ box.classList.remove('hidden');requestAnimationFrame(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}));
 }
 function mpCloseStatus(){document.getElementById('mp-status-list').classList.add('hidden');document.querySelectorAll('.dash-clickable').forEach(card=>card.setAttribute('aria-expanded','false'))}
 
