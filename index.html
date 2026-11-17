@@ -132,7 +132,7 @@ async function mpLoadUnitTimeline(id,selectedMonth){
   const dot=document.createElement('div');dot.className='mp-unit-history-dot';
   const content=document.createElement('div');content.className='mp-unit-history-content';
   const title=document.createElement('div');title.className='mp-unit-history-period';
-  title.textContent=new Date(month.period.slice(0,7)+'-01T12:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'})+(selectedMonth===month.period?' · Sedang dilihat':'');
+  title.textContent=new Date(month.period.slice(0,7)+'-01T12:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'});
   const status=document.createElement('div');status.className='mp-unit-history-status';
   status.textContent=record?(record.sedang_renovasi?'Sedang renovasi':record.status||'Status belum diketahui'):'Tidak tercatat pada arsip bulan ini';
   content.append(title,status);
