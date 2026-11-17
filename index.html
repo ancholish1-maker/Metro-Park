@@ -67,7 +67,45 @@ const floorList=['37','36','35','33','32','31','30','29','28','27','26','25','23
 function pickTower(n,c){towerName=n;towerCode=c;document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden');document.getElementById('towerTitle').textContent=n;document.getElementById('floors').innerHTML='';floorList.forEach(f=>{let b=document.createElement('button');b.textContent=f;b.onclick=()=>pickFloor(f);document.getElementById('floors').appendChild(b)});}
 function backTower(){document.getElementById('towerPick').classList.remove('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.add('hidden');}
 const unitCodes=['AA','AB','AC','AD','AE','AF','AG','AH','AJ','AK','AL','AM','BA','BB','BC','BCA','BD','BDA','BE','BEA','BF','BFA','BG','BH','BJ','BK','BL','BM'];
-function pickFloor(f){floor=f;document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');document.getElementById('floorTitle').textContent=towerName+' · Lantai '+f;let box=document.getElementById('units');box.innerHTML='';let ids=(f==='UG')?Array.from({length:35},(_,i)=>String(i+1).padStart(2,'0')):unitCodes;ids.forEach(code=>{let id=towerCode+'/'+f+'/'+code;let b=document.createElement('button');b.textContent=id;b.onclick=()=>pickUnit(id);box.appendChild(b)})}
+
+async function pickFloor(f) {
+  floor = f;
+
+  document.getElementById('floorView').classList.add('hidden');
+  document.getElementById('unitView').classList.remove('hidden');
+  document.getElementById('floorTitle').textContent =
+    towerName + ' · Lantai ' + f;
+
+  const box = document.getElementById('units');
+  box.innerHTML = 'Memuat unit...';
+
+  const { data, error } = await mpClient
+    .from('units')
+    .select('id')
+    .eq('tower_id', towerCode)
+    .eq('floor', f)
+    .order('id');
+
+  if (error) {
+    box.textContent = 'Gagal memuat unit: ' + error.message;
+    return;
+  }
+
+  box.innerHTML = '';
+
+  if (!data || data.length === 0) {
+    box.textContent = 'Tidak ada unit pada lantai ini.';
+    return;
+  }
+
+  data.forEach(unit => {
+    const b = document.createElement('button');
+    b.textContent = unit.id;
+    b.onclick = () => pickUnit(unit.id);
+    box.appendChild(b);
+  });
+}
+
 function backFloor(){document.getElementById('unitView').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden')}
 function pickUnit(id){document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id}
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
