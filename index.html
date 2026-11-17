@@ -48,7 +48,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 <div class="dash-stat dash-clickable" role="button" tabindex="0" data-status="refund" aria-expanded="false" onclick="mpOpenStatus('refund')"  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mpOpenStatus('refund')}"><div class="dash-stat-label">Deposit Sudah Refund</div><div class="dash-stat-value" id="mp-dash-refund">—</div><div class="dash-stat-foot">Status unit</div></div>
 <div class="dash-stat dash-clickable" role="button" tabindex="0" data-status="cancel" aria-expanded="false" onclick="mpOpenStatus('cancel')"  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mpOpenStatus('cancel')}"><div class="dash-stat-label">Batal Renovasi</div><div class="dash-stat-value" id="mp-dash-cancel">—</div><div class="dash-stat-foot">Status unit</div></div>
 </div>
-<div id="mp-status-list" class="panel hidden" style="margin:16px 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 id="mp-status-list-title" style="margin:0;color:var(--navy)">Daftar Unit</h3><button class="back" style="margin:0" onclick="mpCloseStatus()">Tutup ✕</button></div><p class="muted" id="mp-status-list-count" style="margin:7px 0 14px"></p><div id="mp-status-list-items" class="mp-status-items"></div></div><h3 class="dash-section-title">Akses Cepat</h3>
+<div id="mp-status-list" class="panel hidden" style="margin:16px 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 id="mp-status-list-title" style="margin:0;color:var(--navy)">Daftar Unit</h3><button class="back" style="margin:0" onclick="mpCloseStatus()">Tutup ✕</button></div><p class="muted" id="mp-status-list-count" style="margin:7px 0 14px"></p><div id="mp-status-list-items" class="mp-status-items"></div></div><div class="panel" id="mp-global-search" style="margin:16px 0"><h3 style="margin:0 0 6px;color:var(--navy)">Pencarian Unit</h3><p class="muted" style="margin:0 0 12px">Cari ID unit Manhattan atau Milan.</p><form onsubmit="event.preventDefault();mpSearchUnit()" style="display:flex;gap:8px"><input id="mp-unit-query" type="search" placeholder="Contoh: MA/37/BA" autocomplete="off" style="min-width:0;flex:1;text-transform:uppercase" oninput="mpSearchUnitPreview()"><button class="primary" type="submit">Cari</button></form><div id="mp-unit-search-result" aria-live="polite" style="margin-top:10px"></div></div><h3 class="dash-section-title">Akses Cepat</h3>
 <div class="dash-quick"><button onclick="showPage('tower')">Master Tower <span>▤</span></button><button onclick="showPage('upload')">Upload Excel <span>⇧</span></button><button onclick="showPage('history')">Riwayat Bulanan <span>◷</span></button><button onclick="showPage('plotting')">Plotting Teknisi <span>▣</span></button></div>
 </section>
 <section id="tower" class="hidden">
@@ -307,6 +307,35 @@ async function mpPasteJobs(){
 
 
 const mpStatusLabels={active:'Sedang Renovasi',expired:'Habis Masa Berlaku',bapfo:'BAPFO, Deposit Belum Refund',refund:'Deposit Sudah Refund',cancel:'Batal Renovasi'};
+async function mpSearchUnitPreview(){
+ const q=document.getElementById('mp-unit-query').value.trim().toUpperCase();
+ const box=document.getElementById('mp-unit-search-result');box.replaceChildren();
+ if(!q)return;
+ if(!window.mpAllUnitIds){
+  box.textContent='Memuat master unit...';
+  if(!window.mpUnitLoadPromise)window.mpUnitLoadPromise=(async()=>{const ids=[];for(let offset=0;offset<2000;offset+=500){const {data,error}=await mpClient.from('units').select('id').order('id').range(offset,offset+499);if(error)throw error;ids.push(...(data||[]).map(x=>x.id));if((data||[]).length<500)break;}window.mpAllUnitIds=ids;})().finally(()=>{window.mpUnitLoadPromise=null});
+  try{await window.mpUnitLoadPromise;}catch(err){box.textContent='Gagal memuat master unit: '+err.message;return;}
+  if(document.getElementById('mp-unit-query').value.trim().toUpperCase()!==q)return;
+ }
+ box.replaceChildren();
+ const matches=window.mpAllUnitIds.filter(id=>id.includes(q)).slice(0,12);
+ if(!matches.length){box.textContent='Tidak ada ID unit yang cocok.';return;}
+ for(const id of matches){const btn=document.createElement('button');btn.type='button';btn.style.cssText='margin:4px 6px 4px 0';btn.textContent=id;btn.onclick=()=>{document.getElementById('mp-unit-query').value=id;mpSearchUnit()};box.appendChild(btn);}
+}
+async function mpSearchUnit(){
+ const q=document.getElementById('mp-unit-query').value.trim().toUpperCase().replace(/\\s+/g,'');
+ const box=document.getElementById('mp-unit-search-result');
+ if(!q){box.textContent='Masukkan ID unit dahulu.';return;}
+ if(!window.mpAllUnitIds){await mpSearchUnitPreview();if(!window.mpAllUnitIds)return;}
+ if(!window.mpAllUnitIds.includes(q)){mpSearchUnitPreview();return;}
+ const row=(window.mpLatestUnitStatuses||[]).find(x=>x.unit_id===q);
+ box.replaceChildren();
+ const card=document.createElement('div');card.className='card';card.style.margin='8px 0';
+ const title=document.createElement('strong');title.textContent=q;
+ const detail=document.createElement('p');detail.className='muted';detail.textContent=row?(row.sedang_renovasi?'Sedang renovasi':row.status||'Status belum diketahui')+' · Simbol '+(row.symbol||'—')+' · Periode '+(window.mpLatestPeriod||'—'):'Tidak ada catatan status pada arsip terbaru.';
+ const btn=document.createElement('button');btn.type='button';btn.className='primary';btn.textContent='Lihat Detail Unit';btn.onclick=()=>{window.mpFromDashboard=true;window.mpHistoricalMonth=null;showPage('tower');document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');pickUnit(q);window.scrollTo(0,0)};
+ card.append(title,detail,btn);box.appendChild(card);
+}
 function mpStatusKey(item){
  if(item.sedang_renovasi)return 'active';
  if(item.status==='Sudah habis masa berlaku')return 'expired';
