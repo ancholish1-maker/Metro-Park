@@ -32,7 +32,7 @@ async function mpReadMatrix(file, validIds) {
     for(const row of tags(rows,'row')){const m=new Map();for(const c of tags(row,'c'))m.set(col(c.getAttribute('r')||''),{value:cellValue(c).trim(),style:Number(c.getAttribute('s')||0)});grid.set(Number(row.getAttribute('r')),m)}
     const apartment=/manhattan/i.test(name)?'MA':/milan/i.test(name)?'MI':null;
     const sections=[];
-    if(apartment)sections.push({tower:apartment,header:8,start:9,end:999});
+    if(apartment)sections.push({tower:apartment,header:8,start:9,end:41});
     else if(/kios/i.test(name)){sections.push({tower:'MA',header:8,start:9,end:10},{tower:'MI',header:16,start:17,end:18})}
     else {warnings.push('Sheet tidak dikenali: '+name);continue}
     for(const sec of sections){
@@ -52,7 +52,7 @@ async function mpReadMatrix(file, validIds) {
           if(valid.size&&!valid.has(id))continue;
           const current=cells.get(c);if(!current||!current.value)continue;
           const pattern=fills[xfs[current.style]||0]||'none';
-          const hatched=pattern==='lightUp'||pattern==='darkUp'||pattern==='lightDown'||pattern==='darkDown';
+          const hatched=!['none','solid','gray125'].includes(pattern);
           const result=classify(current.value,hatched);
           if(!result)continue;
           if(result.unknown){warnings.push(id+' ('+current.value+'): '+(result.reason||'Simbol belum dikenali'));continue}
@@ -62,5 +62,5 @@ async function mpReadMatrix(file, validIds) {
       }
     }
   }
-  return {rows:output,warnings,period:'2026-11-10'};
+  return {rows:output,warnings,period:'2026-11-10',renovation_events:output.reduce((n,r)=>n+r.renovation_count,0)};
 }
