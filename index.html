@@ -33,7 +33,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 <body>
 <header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
 <div class="layout">
-<aside><nav id="sideNav"><button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="tower">▤ Master Tower</button><button data-page="upload">⇧ Upload Dot Matrix</button><button data-page="history">◷ Riwayat Bulanan</button></nav></aside>
+<aside><nav id="sideNav"><button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="tower">▤ Master Tower</button><button data-page="upload">⇧ Upload Dot Matrix</button><button data-page="history">◷ Riwayat Bulanan</button><button data-page="plotting">▣ Plottingan Teknisi</button></nav></aside>
 <main>
 <section id="dashboard">
 <h1>Dashboard</h1><p class="sub">Ringkasan status Fitting Out Metro Park</p>
@@ -57,7 +57,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 </section>
 <section id="upload" class="hidden"><h1>Upload Dot Matrix</h1><p class="sub">Unggah file bulanan untuk simulasi alur pembaruan data.</p><div class="panel"><label><b>Pilih file Dot Matrix</b><p class="muted">Format Excel (.xls / .xlsx)</p><input id="file" type="file" accept=".xls,.xlsx"></label><div class="toolbar"><button class="primary" onclick="previewFile()">Preview upload</button></div><div id="preview" class="muted">Belum ada file dipilih.</div></div></section>
 <section id="history" class="hidden"><h1>Riwayat Bulanan</h1><p class="sub">Arsip upload Dot Matrix per periode.</p><div class="panel"><p class="muted">Belum ada riwayat upload. Riwayat akan muncul setelah data bulanan diproses.</p></div></section>
-</main></div>
+<section id="plotting" class="hidden"><h1>Plottingan Teknisi</h1><p class="sub">Kelola pekerjaan teknisi; tersimpan sementara di browser perangkat ini.</p><div class="panel"><div class="toolbar"><button class="primary" onclick="mpAddJob()">+ Tambah pekerjaan</button><button onclick="mpPasteJobs()">Paste WhatsApp</button><input id="mpJobSearch" placeholder="Cari teknisi / unit / pekerjaan" oninput="mpRenderJobs()"><select id="mpJobFilter" onchange="mpRenderJobs()"><option value="">Semua status</option><option>On Schedule</option><option>On Progress</option><option>Done</option></select></div><div id="mpJobList"></div></div></section></main></div>
 <div class="mobile-nav"><button onclick="showPage('dashboard')"><span>▦</span>Dashboard</button><button onclick="showPage('tower')"><span>▤</span>Tower</button><button onclick="showPage('upload')"><span>⇧</span>Upload</button><button onclick="showPage('history')"><span>◷</span>Riwayat</button></div>
 <script>
 const pages=['dashboard','tower','upload','history'];let towerCode='',towerName='',floor='';
@@ -213,4 +213,16 @@ document.getElementById("mp-form").addEventListener("submit", async e => {
   }
 })();
 </script>
-</body></html>
+<script>
+const MP_JOB_KEY='metropark_jobs_v2';
+let mpJobs=[];try{mpJobs=JSON.parse(localStorage.getItem(MP_JOB_KEY)||'[]')}catch(e){mpJobs=[]}
+function mpEscape(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function mpSaveJobs(){localStorage.setItem(MP_JOB_KEY,JSON.stringify(mpJobs));mpRenderJobs()}
+function mpRenderJobs(){const box=document.getElementById('mpJobList');if(!box)return;let q=(document.getElementById('mpJobSearch')?.value||'').toLowerCase(),f=document.getElementById('mpJobFilter')?.value||'';let rows=mpJobs.filter(j=>(!f||j.status===f)&&[j.tech,j.unit,j.desc].join(' ').toLowerCase().includes(q));box.innerHTML=rows.length?rows.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p><span class="pill">'+mpEscape(j.status)+'</span> <button onclick="mpEditJob('+JSON.stringify(j.id).replace(/"/g,'&quot;')+')">Edit</button> <button onclick="mpDeleteJob('+JSON.stringify(j.id).replace(/"/g,'&quot;')+')">Hapus</button></div>').join(''):'<p class="muted">Belum ada pekerjaan.</p>'}
+function mpAskJob(old){let tech=prompt('Nama teknisi',old?.tech||'');if(tech===null)return null;let desc=prompt('Deskripsi pekerjaan',old?.desc||'');if(desc===null)return null;if(!tech.trim()||!desc.trim()){alert('Teknisi dan pekerjaan wajib diisi');return null}let unit=prompt('ID unit (opsional)',old?.unit||'');if(unit===null)return null;let time=prompt('Jam HH:MM (opsional)',old?.time||'');if(time===null)return null;let status=prompt('Status: On Progress / On Schedule / Done',old?.status||'On Progress');if(status===null)return null;if(!['On Progress','On Schedule','Done'].includes(status)){alert('Status tidak valid');return null}return {tech:tech.trim(),desc:desc.trim(),unit:unit.trim(),time:time.trim(),status}}
+function mpAddJob(){let d=mpAskJob();if(d){mpJobs.push({id:crypto.randomUUID(),...d});mpSaveJobs()}}
+function mpEditJob(id){let j=mpJobs.find(x=>x.id===id);if(!j)return;let d=mpAskJob(j);if(d){Object.assign(j,d);mpSaveJobs()}}
+function mpDeleteJob(id){if(confirm('Hapus pekerjaan ini?')){mpJobs=mpJobs.filter(x=>x.id!==id);mpSaveJobs()}}
+function mpPasteJobs(){let t=prompt('Paste plotting WhatsApp: nama teknisi (Pak ...) lalu baris pekerjaan diawali -');if(!t)return;let tech='',added=0;for(let line of t.split(/\r?\n/)){let x=line.trim();if(/^pak\s+/i.test(x)&&!x.startsWith('-')){tech=x;continue}if(!tech||!/^[-•*]/.test(x))continue;let desc=x.replace(/^[-•*]\s*/,'');let u=desc.match(/(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}/i);let tm=desc.match(/\b(?:jam\s*)?(\d{1,2})[.:](\d{2})\b/i);mpJobs.push({id:crypto.randomUUID(),tech,desc,unit:u?u[0].toUpperCase():'',time:tm?tm[1].padStart(2,'0')+':'+tm[2]:'',status:'On Progress'});added++}mpSaveJobs();alert(added+' pekerjaan ditambahkan')}
+document.addEventListener('DOMContentLoaded',mpRenderJobs);
+</script></body></html>
