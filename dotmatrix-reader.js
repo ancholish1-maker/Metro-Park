@@ -17,9 +17,9 @@ async function mpReadMatrix(file, validIds) {
     const s=symbol.replace(/\s/g,'').toUpperCase(), refund=(s.match(/R/g)||[]).length;
     const last=s.slice(-1);
     if(!s)return null;
-    if(!/^[R○●]+$/.test(s))return {unknown:true};
-    if(hatched&&last!=='○')return {unknown:true,reason:'Arsiran tanpa lingkaran kosong terakhir'};
-    let status=last==='○'?(hatched?'Sedang renovasi':'Sudah habis masa berlaku'):last==='●'?'Sudah BAPFO tapi deposit belum refund':'Deposit sudah refund';
+    if(!/^[R○●V]+$/.test(s))return {unknown:true};
+    
+    let status=hatched?'Sedang renovasi':last==='○'?'Sudah habis masa berlaku':last==='●'?'Sudah BAPFO tapi deposit belum refund':last==='V'?'Batal renovasi':'Deposit sudah refund';
     return {status,sedang_renovasi:hatched,refund_count:refund,renovation_count:s.length};
   }
   for(const sheet of tags(book,'sheet')){
