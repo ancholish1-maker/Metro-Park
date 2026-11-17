@@ -109,7 +109,19 @@ async function pickFloor(f) {
 function backFloor(){document.getElementById('unitView').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden')}
 function pickUnit(id){document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id}
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
-function previewFile(){let f=document.getElementById('file').files[0];document.getElementById('preview').textContent=f?'File dipilih: '+f.name+'. Ini baru simulasi; pembacaan simbol Excel belum diaktifkan.':'Pilih file terlebih dahulu.'}
+async function previewFile(){
+ const f=document.getElementById('file').files[0],box=document.getElementById('preview');
+ if(!f){box.textContent='Pilih file terlebih dahulu.';return}
+ if(!/\.xlsx$/i.test(f.name)){box.textContent='Saat ini hanya format .xlsx yang didukung.';return}
+ box.textContent='Membaca simbol dan arsiran Excel...';
+ try{
+  const data=await mpReadMatrix(f);
+  window.mpMatrixPreview=data;
+  const counts={};for(const x of data.rows)counts[x.status]=(counts[x.status]||0)+1;
+  const lines=['Preview '+f.name+': '+data.rows.length+' status unit terbaca (belum disimpan).',...Object.entries(counts).map(([k,v])=>k+': '+v),'Peringatan: '+data.warnings.length,...data.warnings.slice(0,15)];
+  box.textContent=lines.join('\n');box.style.whiteSpace='pre-wrap';
+ }catch(err){box.textContent='Gagal membaca Excel: '+err.message}
+}
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -272,4 +284,4 @@ async function mpPasteJobs(){
  const {error}=await mpClient.from('technician_jobs').insert(jobs);
  if(error)alert('Gagal impor: '+error.message);else{await mpLoadJobs();alert(jobs.length+' pekerjaan berhasil disimpan')}
 }
-</script></body></html>
+</script><script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script><script src="./dotmatrix-reader.js"></script></body></html>
