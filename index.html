@@ -130,40 +130,91 @@ function mpReadSymbols(value) {
  const symbols=[...new Set([...raw].filter(c=>'○●VR'.includes(c)))];
  return symbols;
 }
+function mpColumn(n){let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}
+function mpMatrixEntries(wb){
+ const result=[],issues=[];
+ const layouts=[
+  {sheet:0,tower:'MA',header:8,first:9,last:13,end:31},
+  {sheet:0,tower:'MI',header:16,first:17,last:21,end:31},
+  {sheet:1,tower:'MA',header:8,first:9,last:44,end:29},
+  {sheet:2,tower:'MI',header:8,first:9,last:44,end:29}
+ ];
+ for(const l of layouts){
+  const ws=wb.Sheets[wb.SheetNames[l.sheet]];
+  if(!ws){issues.push('Sheet '+l.sheet+' tidak ditemukan');continue;}
+  for(let row=l.first;row<=l.last;row++){
+   const rawFloor=ws['A'+row]?.v;
+   if(rawFloor==null||!String(rawFloor).trim())continue;
+   const floor=String(rawFloor).trim().toUpperCase();
+   if(!/^(UG|LG|[0-9]{1,2})$/.test(floor))continue;
+   for(let col=2;col<=l.end;col++){
+    const column=mpColumn(col),header=ws[column+l.header]?.v;
+    if(header==null||!String(header).trim())continue;
+    const unit=String(header).trim().toUpperCase();
+    if(!/^[A-Z0-9]+$/.test(unit))continue;
+    const address=column+row,cell=ws[address],raw=cell?.v??'';
+    const symbols=mpParseStatus(raw);
+    if(String(raw).trim()&&!symbols.length)issues.push(wb.SheetNames[l.sheet]+'!'+address+': simbol tidak dikenal');
+    result.push({id:l.tower+'/'+floor+'/'+unit,sheet:l.sheet,address,symbols,renovating:false});
+   }
+  }
+ }
+ return {result,issues};
+}
+async function mpHatchedCells(buffer,wb){
+ if(!window.JSZip)throw Error('Pembaca arsiran Excel belum termuat.');
+ const zip=await JSZip.loadAsync(buffer),parser=new DOMParser();
+ const xml=async path=>parser.parseFromString(await zip.file(path).async('string'),'application/xml');
+ const styles=await xml('xl/styles.xml');
+ const fills=[...styles.getElementsByTagName('fills')[0].getElementsByTagName('fill')];
+ const hatchFills=new Set(fills.flatMap((fill,i)=>{
+  const pattern=fill.getElementsByTagName('patternFill')[0]?.getAttribute('patternType');
+  return pattern&&pattern!=='none'&&pattern!=='solid'&&pattern!=='gray125'?[i]:[];
+ }));
+ const xfs=[...styles.getElementsByTagName('cellXfs')[0].getElementsByTagName('xf')];
+ const hatchStyles=new Set(xfs.flatMap((xf,i)=>hatchFills.has(Number(xf.getAttribute('fillId')))?[i]:[]));
+ const result=new Set();
+ for(let i=0;i<Math.min(3,wb.SheetNames.length);i++){
+  const path='xl/worksheets/sheet'+(i+1)+'.xml';
+  if(!zip.file(path))throw Error('Sheet XML tidak ditemukan: '+path);
+  const doc=await xml(path);
+  for(const c of doc.getElementsByTagName('sheetData')[0].getElementsByTagName('c')){
+   if(hatchStyles.has(Number(c.getAttribute('s')||0)))result.add(i+':'+c.getAttribute('r'));
+  }
+ }
+ return result;
+}
 async function previewFile(){
  const f=document.getElementById('file').files[0],p=document.getElementById('preview');
  if(!f){p.textContent='Pilih file terlebih dahulu.';return;}
- if(!window.XLSX){p.textContent='Library Excel belum termuat. Muat ulang halaman.';return;}
- p.textContent='Sedang membaca Excel...';
+ if(!window.XLSX||!window.JSZip){p.textContent='Library Excel belum termuat. Muat ulang halaman.';return;}
+ p.textContent='Membaca simbol, unit, dan arsiran Excel...';
  try{
-  const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellStyles:true});
+  const buffer=await f.arrayBuffer(),wb=XLSX.read(buffer,{type:'array',cellStyles:true});
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  let html='<b>Berhasil membaca: '+esc(f.name)+'</b>';\n  if(!mpStatusSelfTest())throw Error('Pemeriksaan aturan simbol gagal.');
-  for(const n of wb.SheetNames){
-   const ws=wb.Sheets[n],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-   const filled=rows.reduce((a,r)=>a+r.filter(v=>String(v).trim()!=='').length,0);
-   const counts={'○':0,'●':0,V:0,R:0},combined=[];
-   for(const [address,cell] of Object.entries(ws)){
-    if(address.startsWith('!')||!cell||cell.v==null)continue;
-    const val=String(cell.v).trim();
-    // Only symbol-only cells; headings, legends and notes are excluded from this diagnostic.
-    if(!/^[○●VR\\s]+$/i.test(val))continue;
-    const symbols=mpParseStatus(val).map(x=>x.symbol);
-    for(const symbol of symbols)counts[symbol]++;
-    if(symbols.length>1)combined.push(address+': '+val);
-   }
-   html+='<div style="padding:12px;margin-top:10px;border:1px solid #e2e8f0;border-radius:9px"><b>'+esc(n)+'</b>'+
-    '<div class="muted">Rentang '+esc(ws['!ref']||'-')+' · '+rows.length+' baris · '+filled+' sel berisi</div>'+
-    '<div class="muted">Deteksi awal sel simbol: ○ '+counts['○']+' · ● '+counts['●']+' · V '+counts.V+' · R '+counts.R+'</div>'+
-    '<div class="muted">Sel dengan simbol gabungan: '+combined.length+'</div>'+
-    (combined.length?'<div class="muted">Contoh: '+esc(combined.slice(0,8).join(', '))+'</div>':'')+'</div>';
+  if(!mpStatusSelfTest())throw Error('Uji aturan simbol gagal');
+  const {result,issues}=mpMatrixEntries(wb),hatch=await mpHatchedCells(buffer,wb);
+  for(const entry of result)entry.renovating=hatch.has(entry.sheet+':'+entry.address);
+  const active=result.filter(x=>x.symbols.length||x.renovating),unique=new Map();
+  for(const entry of active){
+   if(unique.has(entry.id))issues.push('ID unit ganda: '+entry.id);
+   unique.set(entry.id,entry);
   }
-  p.innerHTML=html+'<p class="muted">Aturan simbol gabungan telah diuji secara internal (R○, R○○, RR, ●V). Pemeriksaan awal saja: hitungan belum dibatasi ke matriks unit dan belum menjadi jumlah unit/status. Arsiran renovasi belum diverifikasi. Tidak ada perubahan database.</p>';
- }catch(e){p.textContent='Gagal membaca file: '+(e.message||e);}
+  const renovated=active.filter(x=>x.renovating).map(x=>x.id);
+  const count=symbol=>active.filter(x=>x.symbols.some(y=>y.symbol===symbol)).length;
+  let html='<b>Preview '+esc(f.name)+'</b><div class="muted">Sheet: '+wb.SheetNames.map(esc).join(', ')+'</div>';
+  html+='<p>Sel matriks yang dipetakan: '+result.length+' · Unit dengan status/arsiran: '+unique.size+'</p>';
+  html+='<p>○ '+count('○')+' · ● '+count('●')+' · V '+count('V')+' · R '+count('R')+'</p>';
+  html+='<p><b>Sedang renovasi ('+renovated.length+'):</b> '+esc(renovated.join(', ')||'Tidak terdeteksi')+'</p>';
+  if(issues.length)html+='<p style="color:#a65b00">Perlu verifikasi: '+issues.length+' catatan. Contoh: '+esc(issues.slice(0,5).join('; '))+'</p>';
+  html+='<p class="muted">Preview saja. Belum menyimpan ke Supabase; status dan jumlah unit wajib dicocokkan dengan master sebelum impor.</p>';
+  p.innerHTML=html;
+ }catch(e){p.textContent='Gagal membaca Excel: '+(e.message||e);}
 }
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
