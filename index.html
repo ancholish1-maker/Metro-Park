@@ -319,7 +319,7 @@ async function mpLoadJobs(){
  const {data:profile,error:pe}=await mpClient.from('profiles').select('role,is_active').eq('id',user.id).single();
  if(pe||!profile?.is_active){mpNotice('Akun tidak memiliki akses.');return}
  mpIsAdmin=profile.role==='admin';
- const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status').order('created_at',{ascending:false});
+ const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status').order('created_at',{ascending:true});
  if(error){mpNotice('Database plotting belum siap: '+error.message+'. Jangan input pekerjaan dulu.');return}
  mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff: hanya melihat.');mpRenderJobs();
 }
@@ -362,7 +362,7 @@ function mpCopyWhatsApp(){
  const lines=['*PLOTTINGAN TEKNISI CIVIL*',''];
  const names=[...mpTechOrder,...[...new Set(list.map(j=>j.tech))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
  for(const name of names){
-  const jobs=list.filter(j=>j.tech.toLowerCase()===name.toLowerCase()).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const jobs=list.filter(j=>j.tech.toLowerCase()===name.toLowerCase());
   if(!jobs.length)continue;
   lines.push('*'+name+'*');
   for(const j of jobs){
