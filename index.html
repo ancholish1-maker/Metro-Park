@@ -376,7 +376,7 @@ async function mpAddJob(){if(!mpMayWrite())return;let d=mpAskJob();if(!d)return;
 async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j)return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
 async function mpDeleteJob(id){if(!mpMayWrite()||!confirm('Hapus pekerjaan ini secara permanen?'))return;const {error}=await mpClient.from('technician_jobs').delete().eq('id',id);if(error)alert('Gagal hapus: '+error.message);else await mpLoadJobs()}
 let mpWaParsed=[];
-function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];document.getElementById('mpWaPreview').replaceChildren()}
+function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];mpWaEditing=-1;document.getElementById('mpWaPreview').replaceChildren()}
 function mpWaName(line){
  const raw=line.replace(/[*_]/g,'').replace(/:\s*$/,'').replace(/^(pak|mas|bapak)\s+/i,'').trim().toLowerCase();
  const names={'fredy':'Fredy A.','fredy a.':'Fredy A.','adi':'Adi K.','adi k.':'Adi K.','sugi':'Sugiyanto','sugiyanto':'Sugiyanto','har':'Haryanto','haryanto':'Haryanto','maryoto':'Maryoto','matyoto':'Maryoto','ferry':'Ferry'};
@@ -400,12 +400,33 @@ function mpPreviewWhatsApp(){
   const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
   mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Schedule'});
  }
- preview.innerHTML='<p><b>'+mpWaParsed.length+' pekerjaan terbaca</b></p>'+
- (mpWaParsed.length?mpWaParsed.map(j=>'<div style="padding:7px 0;border-bottom:1px solid #ddd"><b>'+mpEscape(j.tech)+'</b>: '+mpEscape(j.description)+(j.scheduled_time?' jam '+mpEscape(j.scheduled_time):'')+'</div>').join(''):'<p class="muted">Belum ada pekerjaan terbaca. Pastikan baris nama dan tanda - sesuai contoh.</p>')+
- (absence.length?'<p class="muted">Catatan absensi (belum disimpan): '+mpEscape(absence.join('; '))+'</p>':'')+
- (ignored?'<p class="muted">'+ignored+' baris lain dilewati (termasuk tanggal/judul).</p>':'')+
- (mpWaParsed.length?'<div style="margin-top:12px"><button class="primary" onclick="mpSaveWhatsApp()">Simpan '+mpWaParsed.length+' Pekerjaan</button></div>':'');
+ mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
+
+let mpWaMeta={absence:[],ignored:0},mpWaEditing=-1;
+function mpRenderWaPreview(){
+ const p=document.getElementById('mpWaPreview');
+ const names=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry'];
+ const entries=mpWaParsed.map((j,i)=>({j,i})).sort((a,b)=>names.indexOf(a.j.tech)-names.indexOf(b.j.tech));
+ p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px"><div><b style="font-size:18px">Plotting Pekerjaan</b><div class="muted">Pratinjau sebelum disimpan</div></div><span class="pill">'+mpWaParsed.length+' pekerjaan</span></div>'+
+ entries.map(({j,i})=>'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:9px 0">'+
+ (mpWaEditing===i?
+ '<b>Edit pekerjaan</b><label style="display:block;margin-top:10px">Teknisi utama<select id="mpWaTech" style="display:block;width:100%;padding:10px;margin:5px 0">'+names.map(n=>'<option value="'+mpEscape(n)+'" '+(n===j.tech?'selected':'')+'>'+mpEscape(n)+'</option>').join('')+'</select></label><label style="display:block;margin-top:10px">Deskripsi pekerjaan<textarea id="mpWaDesc" rows="3" style="display:block;width:100%;padding:10px;margin:5px 0;font:inherit">'+mpEscape(j.description)+'</textarea></label><label style="display:block;margin-top:10px">Jam mulai (opsional)<input id="mpWaTime" type="time" value="'+mpEscape(j.scheduled_time||'')+'" style="display:block;width:100%;padding:10px;margin:5px 0"></label><div style="display:flex;gap:8px;margin-top:12px"><button class="primary" onclick="mpWaApply('+i+')">Simpan</button><button onclick="mpWaEditing=-1;mpRenderWaPreview()">Batal</button></div>':
+ '<div style="display:flex;justify-content:space-between;align-items:start;gap:8px"><div style="min-width:0;flex:1"><b>'+mpEscape(j.tech)+'</b><div style="margin-top:5px;overflow-wrap:anywhere">'+mpEscape(j.description)+(j.scheduled_time?' jam '+mpEscape(j.scheduled_time.replace(':','.')):'')+'</div></div><div style="display:flex;gap:5px"><button aria-label="Edit pekerjaan" title="Edit" onclick="mpWaEditing='+i+';mpRenderWaPreview()" style="padding:7px 9px">✎</button><button aria-label="Hapus pekerjaan" title="Hapus" onclick="mpWaDelete('+i+')" style="padding:7px 9px;color:#b91c1c">♲</button></div></div>')+'</div>').join('')+
+ (!entries.length?'<p class="muted">Belum ada pekerjaan.</p>':'')+
+ (mpWaMeta.absence.length?'<p class="muted">Catatan absensi (belum disimpan): '+mpEscape(mpWaMeta.absence.join('; '))+'</p>':'')+
+ (mpWaMeta.ignored?'<p class="muted">'+mpWaMeta.ignored+' baris lain dilewati (termasuk tanggal/judul).</p>':'')+
+ (entries.length?'<button class="primary" style="width:100%;margin-top:12px" onclick="mpSaveWhatsApp()">Simpan '+entries.length+' Pekerjaan</button>':'');
+}
+function mpWaDelete(i){mpWaParsed.splice(i,1);mpWaEditing=-1;mpRenderWaPreview()}
+function mpWaApply(i){
+ const desc=document.getElementById('mpWaDesc').value.trim(),time=document.getElementById('mpWaTime').value,tech=document.getElementById('mpWaTech').value;
+ if(!desc){alert('Deskripsi wajib diisi.');return}
+ const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
+ Object.assign(mpWaParsed[i],{tech,description:desc,scheduled_time:time||null,unit:u?u[0].toUpperCase():null});
+ mpWaEditing=-1;mpRenderWaPreview();
+}
+
 async function mpSaveWhatsApp(){
  if(!mpMayWrite()||!mpWaParsed.length)return;
  if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan ke database?'))return;
