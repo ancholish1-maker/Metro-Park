@@ -118,7 +118,9 @@ async function pickUnit(id){
  const month=data[0],record=(Array.isArray(month.snapshot)?month.snapshot:[]).find(x=>x.unit_id===id);
  if(!record){status.textContent='Tidak ada catatan renovasi';detail.textContent='Unit ini tidak memiliki simbol status pada arsip '+month.period.slice(0,7)+'.';return}
  status.textContent=record.sedang_renovasi?'Sedang renovasi':record.status||'Status belum diketahui';
- detail.textContent='Periode '+month.period.slice(0,7)+' · Total kejadian renovasi unit: '+(record.renovation_count||1);
+ const symbol=record.symbol||'—';
+ const legend=['○ = Sudah habis masa berlaku','● = Sudah BAPFO, deposit belum refund','R = Deposit sudah refund','V = Batal renovasi','Sel diarsir = Sedang renovasi (mengutamakan arsiran)'];
+ detail.textContent='Simbol Excel: '+symbol+'\\nPeriode '+month.period.slice(0,7)+' · Total kejadian renovasi unit: '+(record.renovation_count||1)+'\\n\\nKeterangan simbol:\\n'+legend.join('\\n')+'\\nSimbol gabungan (contoh R○ atau R●) menunjukkan beberapa kejadian renovasi.';detail.style.whiteSpace='pre-line';
 }
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
 async function previewFile(){
