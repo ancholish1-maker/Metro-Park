@@ -74,7 +74,7 @@ function pickTower(n,c){towerName=n;towerCode=c;document.getElementById('towerPi
 function backTower(){document.getElementById('towerPick').classList.remove('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.add('hidden');}
 const unitCodes=['AA','AB','AC','AD','AE','AF','AG','AH','AJ','AK','AL','AM','BA','BB','BC','BCA','BD','BDA','BE','BEA','BF','BFA','BG','BH','BJ','BK','BL','BM'];
 
-async function pickFloor(f) {
+async function pickFloor(f) {window.mpFromDashboard=false;
   floor = f;
 
   document.getElementById('floorView').classList.add('hidden');
@@ -128,7 +128,7 @@ async function pickUnit(id){
  detail.textContent='Periode '+month.period.slice(0,7)+' · '+(record.renovation_count||1)+' kejadian renovasi';
  detail.style.whiteSpace='normal';
 }
-function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
+function backUnits(){document.getElementById('statusView').classList.add('hidden');if(window.mpFromDashboard){window.mpFromDashboard=false;showPage('dashboard');document.getElementById('towerPick').classList.remove('hidden');document.getElementById('unitView').classList.add('hidden');}else document.getElementById('unitView').classList.remove('hidden')}
 async function previewFile(){
  const f=document.getElementById('file').files[0],box=document.getElementById('preview');
  if(!f){box.textContent='Pilih file terlebih dahulu.';return}
@@ -328,7 +328,7 @@ function mpOpenStatus(key){
  const info=document.createElement('span'),name=document.createElement('strong'),meta=document.createElement('small');
  name.textContent=item.unit_id;meta.textContent='Simbol '+(item.symbol||'—')+' · '+(item.renovation_count||1)+' kejadian renovasi';
  info.append(name,meta);const arrow=document.createElement('span');arrow.textContent='›';b.append(info,arrow);
- b.onclick=()=>{showPage('tower');document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');pickUnit(item.unit_id);window.scrollTo(0,0)};
+ b.onclick=()=>{window.mpFromDashboard=true;showPage('tower');document.getElementById('towerPick').classList.add('hidden');document.getElementById('floorView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden');pickUnit(item.unit_id);window.scrollTo(0,0)};
  list.appendChild(b);
  }
  box.classList.remove('hidden');box.scrollIntoView({behavior:'smooth',block:'start'});
