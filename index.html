@@ -14,7 +14,7 @@ nav button{display:block;width:100%;text-align:left;border:0;background:transpar
 nav button.active,nav button:hover{background:#eaf1f8;color:var(--navy)}
 main{padding:26px;width:100%;max-width:1250px;margin:auto}.mobile-nav{display:none}
 h1{font-size:25px;margin:0 0 5px;color:var(--navy)}.sub{color:var(--muted);margin:0 0 22px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0 24px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:18px 0 24px}
 .card,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 8px #102b4e08}
 .metric{font-size:27px;font-weight:800;color:var(--navy);margin-top:6px}.muted{color:var(--muted);font-size:13px}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}.toolbar select,.toolbar input,.toolbar button,.action{padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:white;font:inherit}
@@ -38,6 +38,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 <section id="dashboard">
 <h1>Dashboard</h1><p class="sub">Ringkasan status Fitting Out Metro Park</p>
 <div class="cards">
+<div class="card"><div class="muted">Total Renovasi (termasuk FASUM)</div><div class="metric">939</div><div class="muted">929 renovasi unit + 10 FASUM · Referensi November 2026</div></div>
 <div class="card"><div class="muted">Total Unit</div><div class="metric">—</div><div class="muted">Menunggu data master</div></div>
 <div class="card"><div class="muted">Habis Masa Berlaku</div><div class="metric">—</div></div>
 <div class="card"><div class="muted">BAPFO, Deposit Belum Refund</div><div class="metric">—</div></div>
