@@ -45,7 +45,7 @@ async function mpReadMatrix(file, validIds) {
           if(c<2)continue;
           let code=h.value.toUpperCase();
           if(sec.header===8||sec.header===16) {
-            if(!apartment){if(!/^\d+$/.test(code))continue;code=code.padStart(2,'0')}
+            if(!apartment){if(!/^\d{1,2}A?$/.test(code))continue;code=code.replace(/^(\d)(A?)$/,(_,n,a)=>'0'+n+a)}
             else if(!/^[A-Z]{2,3}$/.test(code))continue;
           }
           const id=sec.tower+'/'+floor+'/'+code;
