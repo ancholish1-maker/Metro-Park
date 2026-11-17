@@ -116,7 +116,7 @@ async function previewFile(){
  if(!/\.xlsx$/i.test(f.name)){box.textContent='Saat ini hanya format .xlsx yang didukung.';return}
  window.mpMatrixPreview=null;document.getElementById('mp-save').disabled=true;box.textContent='Membaca simbol dan arsiran Excel...';
  try{
-  const {data:master,error:me}=await mpClient.from('units').select('id');if(me)throw me; const ids=new Set((master||[]).map(x=>x.id));if(ids.size!==1582)throw Error('Master unit tidak lengkap: '+ids.size); const data=await mpReadMatrix(f,Array.from(ids));
+  const ids=new Set();for(let offset=0;offset<2000;offset+=500){const {data:master,error:me}=await mpClient.from('units').select('id').order('id').range(offset,offset+499);if(me)throw me;for(const u of master||[])ids.add(u.id);if((master||[]).length<500)break;}if(ids.size!==1582)throw Error('Master unit tidak lengkap: '+ids.size); const data=await mpReadMatrix(f,Array.from(ids));
   window.mpMatrixPreview=data;document.getElementById('mp-save').disabled=!!data.warnings.length||!data.rows.length;
   const counts={};for(const x of data.rows)counts[x.status]=(counts[x.status]||0)+1;
   const lines=['Total renovasi (termasuk FASUM): '+(data.renovation_events+Number(document.getElementById('mp-fasum').value||0)),'Preview belum disimpan.','Peringatan pembacaan: '+data.warnings.length,...data.warnings.slice(0,15)];
