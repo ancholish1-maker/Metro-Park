@@ -109,7 +109,7 @@ async function pickFloor(f) {
 function backFloor(){document.getElementById('unitView').classList.add('hidden');document.getElementById('floorView').classList.remove('hidden')}
 function pickUnit(id){document.getElementById('unitView').classList.add('hidden');document.getElementById('statusView').classList.remove('hidden');document.getElementById('unitTitle').textContent=id}
 function backUnits(){document.getElementById('statusView').classList.add('hidden');document.getElementById('unitView').classList.remove('hidden')}
-function previewFile(){let f=document.getElementById('file').files[0];document.getElementById('preview').textContent=f?'File dipilih: '+f.name+'. Ini baru simulasi; pembacaan simbol Excel belum diaktifkan.':'Pilih file terlebih dahulu.'}
+function previewFile(){const f=document.getElementById('file').files[0];const p=document.getElementById('preview');if(!f){p.textContent='Pilih file terlebih dahulu.';return;}p.textContent='File terpilih: '+f.name+'. Menyiapkan pembacaan Excel...';}
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
