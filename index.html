@@ -63,7 +63,7 @@ table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;bo
 </section>
 <section id="upload" class="hidden"><h1>Upload Dot Matrix</h1><p class="sub">Baca simbol dan arsiran dari file Excel. Preview belum menyimpan ke database.</p><div class="panel"><label><b>Pilih file Dot Matrix</b><p class="muted">Format Excel (.xls / .xlsx)</p><input id="file" type="file" accept=".xlsx"></label><div class="toolbar"><button class="primary" onclick="previewFile()">Preview upload</button></div><div id="preview" class="muted">Belum ada file dipilih.</div><div class="toolbar"><label for="mp-period">Periode bulan</label><input type="month" id="mp-period" value="2026-11"><label for="mp-fasum">Tambahan FASUM</label><input type="number" id="mp-fasum" min="0" step="1" value="10" style="width:80px"><button class="primary action" id="mp-save" onclick="mpSaveMonthly()" disabled>Simpan arsip bulanan</button></div><p class="muted">Arsip tiap bulan tersimpan terpisah. Periode yang sama tidak ditimpa.</p></div></section>
 <section id="history" class="hidden"><h1>Riwayat Bulanan</h1><p class="sub">Arsip upload Dot Matrix per periode.</p><div class="panel" id="mp-compare-panel" style="margin:12px 0"><h3 style="margin-top:0">Perbandingan Bulanan</h3><p class="muted">Bandingkan status unit antara dua arsip Dot Matrix.</p><div class="toolbar" style="display:flex;gap:8px;flex-wrap:wrap"><label>Periode awal <select id="mp-compare-from" onchange="mpCompareMonths()"></select></label><label>Periode akhir <select id="mp-compare-to" onchange="mpCompareMonths()"></select></label></div><div id="mp-compare-result" aria-live="polite" style="margin-top:12px"></div></div><div id="mp-history-detail" class="panel hidden" style="margin:12px 0;cursor:pointer" role="region" aria-label="Detail arsip bulanan, ketuk area kosong untuk menutup" onclick="if(event.target.closest('button, #mp-history-units'))return;mpCloseMonth()"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h3 id="mp-history-title" style="margin:0">Detail Periode</h3><button onclick="mpCloseMonth()">Tutup ×</button></div><p class="muted" id="mp-history-count"></p><div id="mp-history-units" class="mp-status-items"></div></div><div class="panel" id="mp-history-list"><p class="muted">Memuat riwayat bulanan...</p></div></section>
-<section id="plotting" class="hidden"><h1>Plottingan Teknisi</h1><p class="sub">Kelola pekerjaan teknisi; tersimpan sementara di browser perangkat ini.</p><div class="panel"><div class="toolbar"><button class="primary" onclick="mpAddJob()">+ Tambah pekerjaan</button><button onclick="mpPasteJobs()">Paste WhatsApp</button><input id="mpJobSearch" placeholder="Cari teknisi / unit / pekerjaan" oninput="mpRenderJobs()"><select id="mpJobFilter" onchange="mpRenderJobs()"><option value="">Semua status</option><option>On Schedule</option><option>On Progress</option><option>Done</option></select></div><p id="mpJobNotice" class="muted">Login untuk memuat pekerjaan dari database.</p><div id="mpJobList"></div></div></section></main></div>
+<section id="plotting" class="hidden"><h1>Plottingan Teknisi</h1><p class="sub">Kelola pekerjaan teknisi yang tersimpan di database. Salin plotting ke WhatsApp.</p><div class="panel"><div class="toolbar"><button class="primary" onclick="mpAddJob()">+ Tambah pekerjaan</button><button onclick="mpPasteJobs()">Paste WhatsApp</button><button onclick="mpCopyWhatsApp()">Salin ke WhatsApp</button><input id="mpJobSearch" placeholder="Cari teknisi / unit / pekerjaan" oninput="mpRenderJobs()"><select id="mpJobFilter" onchange="mpRenderJobs()"><option value="">Semua status</option><option>On Schedule</option><option>On Progress</option><option>Done</option></select></div><p id="mpJobNotice" class="muted">Login untuk memuat pekerjaan dari database.</p><div id="mpJobList"></div></div></section></main></div>
 <div class="mobile-nav"><button onclick="showPage('dashboard')"><span>▦</span>Dashboard</button><button onclick="showPage('tower')"><span>▤</span>Tower</button><button onclick="showPage('upload')"><span>⇧</span>Upload</button><button onclick="showPage('history')"><span>◷</span>Riwayat</button><button onclick="showPage('plotting')"><span>▣</span>Plotting</button></div>
 <script>
 const pages=['dashboard','tower','upload','history', 'plotting'];let towerCode='',towerName='',floor='';
@@ -330,6 +330,35 @@ function mpRenderJobs(){
  let rows=mpJobs.filter(j=>(!f||j.status===f)&&[j.tech,j.unit,j.desc].join(' ').toLowerCase().includes(q));
  rows.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  box.innerHTML=rows.length?rows.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p><span class="pill">'+mpEscape(j.status)+'</span> '+(mpIsAdmin?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+'</div>').join(''):'<p class="muted">Belum ada pekerjaan.</p>';
+}
+const mpTechOrder=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry'];
+function mpCopyWhatsApp(){
+ if(!mpJobsReady){alert('Data plotting belum siap.');return}
+ const list=mpJobs.slice();
+ if(!list.length){alert('Belum ada pekerjaan untuk disalin.');return}
+ const lines=['*PLOTTINGAN TEKNISI CIVIL*',''];
+ const names=[...mpTechOrder,...[...new Set(list.map(j=>j.tech))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
+ for(const name of names){
+  const jobs=list.filter(j=>j.tech.toLowerCase()===name.toLowerCase()).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  if(!jobs.length)continue;
+  lines.push('*'+name+'*');
+  for(const j of jobs){
+   let d=j.desc.trim();
+   if(j.time)d+=' jam '+j.time.replace(':','.');
+   lines.push('- '+d);
+  }
+  lines.push('');
+ }
+ const result=lines.join('\\n').trim();
+ if(navigator.clipboard&&window.isSecureContext){
+  navigator.clipboard.writeText(result).then(()=>alert('Plotting berhasil disalin. Tempel di WhatsApp.')).catch(()=>mpCopyFallback(result));
+ }else mpCopyFallback(result);
+}
+function mpCopyFallback(value){
+ const el=document.createElement('textarea');el.value=value;el.style.position='fixed';el.style.opacity='0';document.body.appendChild(el);el.select();
+ const ok=document.execCommand('copy');el.remove();
+ if(ok)alert('Plotting berhasil disalin. Tempel di WhatsApp.');
+ else prompt('Salin teks plotting berikut:',value);
 }
 function mpAskJob(old){
  let tech=prompt('Nama teknisi',old?.tech||'');if(tech===null)return null;
