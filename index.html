@@ -306,6 +306,31 @@ async function mpCheck(user) {
       location.reload();
     };
     document.body.appendChild(btn);
+    const pw=document.createElement("button");
+    pw.id="mp-password-settings";pw.textContent="Ganti Password";
+    pw.style.cssText="position:fixed;right:16px;top:65px;z-index:1000;border-radius:10px;padding:10px";
+    pw.onclick=()=>document.getElementById("mp-password-dialog").showModal();
+    document.body.appendChild(pw);
+    const dlg=document.createElement("dialog");dlg.id="mp-password-dialog";dlg.style.cssText="border:1px solid #cbd5e1;border-radius:16px;padding:20px;width:min(360px,85vw)";
+    dlg.innerHTML='<form style="display:grid;gap:12px"><h2>Ganti Password</h2><label>Password saat ini<input name="old" type="password" autocomplete="current-password" required></label><label>Password baru<input name="next" type="password" autocomplete="new-password" minlength="8" required></label><label>Konfirmasi password baru<input name="repeat" type="password" autocomplete="new-password" minlength="8" required></label><p role="status"></p><button type="submit">Simpan Password</button><button type="button" data-close>Batal</button></form>';
+    document.body.appendChild(dlg);
+    const form=dlg.querySelector("form"),msg=form.querySelector("[role=status]"),save=form.querySelector("[type=submit]");
+    dlg.addEventListener("close",()=>{form.reset();msg.textContent=""});
+    form.querySelector("[data-close]").onclick=()=>dlg.close();
+    form.onsubmit=async e=>{
+      e.preventDefault();if(save.disabled)return;
+      const f=new FormData(form),old=String(f.get("old")),next=String(f.get("next"));
+      if(next!==f.get("repeat")||next.length<8||next===old){msg.textContent="Password baru harus berbeda, minimal 8 karakter, dan konfirmasi harus sama.";return}
+      save.disabled=true;msg.textContent="Memverifikasi...";
+      try{
+        const {data:{user},error:ue}=await mpClient.auth.getUser();
+        if(ue||!user?.email)throw Error("Sesi tidak tersedia. Login kembali.");
+        const {error:ve}=await mpClient.auth.signInWithPassword({email:user.email,password:old});if(ve)throw Error("Verifikasi password lama gagal.");
+        const {error:pe}=await mpClient.auth.updateUser({password:next});if(pe)throw pe;
+        form.reset();msg.textContent="Password berhasil diganti.";
+      }catch(err){msg.textContent=err.message||"Gagal mengganti password."}finally{save.disabled=false}
+    };
+
   }
 }
 
