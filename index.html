@@ -453,9 +453,26 @@ async function mpPhotoRefresh(){
  }
 }
 
-async function mpStampCamera(file){
- const taken=new Date();
- const location=await new Promise(resolve=>{
+
+const mpPhotoLibs={};
+function mpPhotoLib(url,global){if(window[global])return Promise.resolve(window[global]);return mpPhotoLibs[global]||=(new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=url;script.onload=()=>window[global]?resolve(window[global]):reject(Error('Library tidak tersedia'));script.onerror=()=>reject(Error('Library gagal dimuat'));document.head.appendChild(script)}))}
+async function mpGalleryStamp(file){
+ let detected=false,uncertain=true;
+ try{
+ const ocr=await mpPhotoLib('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','Tesseract');
+ const worker=await ocr.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',langPath:'https://tessdata.projectnaptha.com/4.0.0'});
+ try{const {data}=await worker.recognize(file);const t=data.text||'';const date=/(?:\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b|\b\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2}\b|\b\d{1,2}\s+(?:jan|feb|mar|apr|may|mei|jun|jul|aug|agu|sep|oct|okt|nov|dec|des)\w*\s+\d{4}\b)/i.test(t);const time=/\b\d{1,2}[:.]\d{2}(?::\d{2})?\b/.test(t);detected=date&&time;uncertain=!detected&&(date||time||data.confidence<60)}finally{await worker.terminate()}
+ }catch(e){uncertain=true}
+ if(detected)return file;
+ if(uncertain&&!confirm('Timestamp pada '+file.name+' tidak dapat dipastikan. Apakah foto BELUM memiliki timestamp dan perlu ditambahkan?'))return file;
+ let meta={};try{const exif=await mpPhotoLib('https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js','exifr');meta=await exif.parse(file,{gps:true,tiff:true,exif:true})||{}}catch(e){}
+ const taken=meta.DateTimeOriginal instanceof Date?meta.DateTimeOriginal:null;
+ const location=Number.isFinite(meta.latitude)&&Number.isFinite(meta.longitude)?meta.latitude.toFixed(6)+', '+meta.longitude.toFixed(6):'Lokasi asli tidak tersedia';
+ return mpStampCamera(file,{taken,location});
+}
+async function mpStampCamera(file,original=null){
+ const taken=original?original.taken:new Date();
+ const location=original?original.location:await new Promise(resolve=>{
  if(!navigator.geolocation){resolve('Lokasi tidak tersedia');return}
  navigator.geolocation.getCurrentPosition(p=>resolve(p.coords.latitude.toFixed(6)+', '+p.coords.longitude.toFixed(6)),()=>resolve('Lokasi tidak tersedia'),{enableHighAccuracy:true,timeout:10000,maximumAge:0});
  });
@@ -465,9 +482,9 @@ async function mpStampCamera(file){
  const scale=Math.min(1,2400/Math.max(img.naturalWidth,img.naturalHeight));
  const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
  const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
- const parts=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(taken);
+ const parts=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(taken||new Date());
  const get=k=>parts.find(p=>p.type===k)?.value||'';
- const lines=[get('day')+' '+get('month')+' '+get('year')+' '+get('hour')+':'+get('minute')+':'+get('second'),location];
+ const lines=[taken?get('day')+' '+get('month')+' '+get('year')+' '+get('hour')+':'+get('minute')+':'+get('second'):'Waktu pengambilan tidak tersedia',location];
  const size=Math.max(12,Math.round(c.width*0.024)),pad=Math.round(size*0.7);
  ctx.font=size+'px Arial,sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillStyle='white';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=3;
  lines.forEach((line,i)=>ctx.fillText(line,c.width-pad,c.height-pad-(lines.length-1-i)*size*1.25,c.width-pad*2));
@@ -480,7 +497,7 @@ async function mpSavePhotos(files,camera){
  const msg=document.getElementById('mpPhotoMessage');const controls=[...document.querySelectorAll('#mpPhotoDialog button')];controls.forEach(b=>b.disabled=true);
  let count=0,fail=[];
  try{for(let file of files){try{
- if(camera){msg.textContent='Menyiapkan timestamp dan lokasi...';file=await mpStampCamera(file)}
+ if(camera){msg.textContent='Menyiapkan timestamp dan lokasi...';file=await mpStampCamera(file)}else{msg.textContent='Memeriksa timestamp foto galeri...';file=await mpGalleryStamp(file)}
  if(!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type))throw Error('Format foto tidak didukung');
  if(file.size>10485760)throw Error('Foto melebihi 10 MB');
  const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/heic':'heic','image/heif':'heif'})[file.type];
