@@ -381,7 +381,7 @@ function mpRenderUnitHistory(){
  box.innerHTML='<div style="padding:12px;border:1px solid #dbe3ee;border-radius:12px;background:#f8fafc"><b>Riwayat unit: '+mpEscape(q)+'</b><p class="muted">'+matches.length+' pekerjaan ditemukan (aktif dan selesai)</p>'+
  (matches.length?dates.map(date=>'<h3 style="margin:16px 0 8px;font-size:16px">'+mpEscape(mpDateLabel(date))+'</h3>'+matches.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<p style="margin:5px 0">'+(j.status==='Done'?'🟢':j.status==='On Progress'?'🔴':'⚪')+' '+mpEscape(j.status)+'</p></div>').join('')).join(''):'<p class="muted">Belum ada riwayat pekerjaan untuk unit ini.</p>')+'</div>';
 }
-function mpHasUnitId(j){return /\b(?:MA|MI)\s*\/\s*(?:UG|LG|B[12]|\d{1,2})\s*\/\s*(?:[A-Z]{1,3}\d*|\d{1,2}[A-Z]?)\b/i.test([j.unit,j.desc].join(' '))}
+function mpHasUnitId(j){return /\b(?:MA|MI)\s*\/\s*(?:UG|LG|B[12]|\d{1,2})(?:\s*\/\s*(?:[A-Z]{1,3}\d*|\d{1,2}[A-Z]?))?\b/i.test([j.unit,j.desc].join(' '))}
 async function mpConfirmJob(id,result){
  if(!mpMayWrite())return;
  const j=mpJobs.find(x=>String(x.id)===String(id));
