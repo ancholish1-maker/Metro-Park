@@ -357,7 +357,8 @@ async function mpSetJobStatus(id,status,el){
 const mpTechOrder=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry'];
 function mpCopyWhatsApp(){
  if(!mpJobsReady){alert('Data plotting belum siap.');return}
- const list=mpJobs.slice();
+ const fromPreview=mpWaParsed.length>0;
+ const list=fromPreview?mpWaParsed.map(j=>({tech:j.tech,desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',assistants:j.assistants||[]})):mpJobs.slice();
  if(!list.length){alert('Belum ada pekerjaan untuk disalin.');return}
  const lines=['*PLOTTINGAN TEKNISI CIVIL*',''];
  const names=[...mpTechOrder,...[...new Set(list.map(j=>j.tech))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
