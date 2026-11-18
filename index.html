@@ -411,13 +411,60 @@ function mpRenderMonitoring(){
  document.getElementById('mpMonitorDone').textContent=done.length;
  box.innerHTML=pending.length?pending.map(j=>{
   const buttons=mpIsAdmin?'<div class="toolbar"><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Selesai">✓ Selesai</button><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Belum Selesai">Belum Selesai</button></div>':'<p class="muted">Menunggu akses Staff FO.</p>';
-  return '<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">'+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+' · '+mpEscape(j.status)+'</p>'+(j.confirmation_result?'<p class="muted">Konfirmasi: '+mpEscape(j.confirmation_result)+'</p>':'')+buttons+'</div>';
+  return '<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">'+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+' · '+mpEscape(j.status)+'</p>'+(j.confirmation_result?'<p class="muted">Konfirmasi: '+mpEscape(j.confirmation_result)+'</p>':'')+buttons+mpPhotoButton(j)+'</div>';
  }).join(''):'<p class="muted">Tidak ada pekerjaan yang belum selesai.</p>';
- doneBox.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">Tanggal plotting: '+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+'</p><p style="color:#15803d;font-weight:700">✓ Done</p>'+(j.confirmed_at?'<p class="muted">Dikonfirmasi: '+mpEscape(new Date(j.confirmed_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}))+' WIB</p>':'')+'</div>').join(''):'<p class="muted">Belum ada pekerjaan selesai tanpa ID Unit.</p>';
+ doneBox.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">Tanggal plotting: '+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+'</p><p style="color:#15803d;font-weight:700">✓ Done</p>'+(j.confirmed_at?'<p class="muted">Dikonfirmasi: '+mpEscape(new Date(j.confirmed_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}))+' WIB</p>':'')+mpPhotoButton(j)+'</div>').join(''):'<p class="muted">Belum ada pekerjaan selesai tanpa ID Unit.</p>';
 }
 document.getElementById('mpMonitorList').addEventListener('click',e=>{
  const btn=e.target.closest('button[data-confirm-job]');if(btn)mpConfirmJob(btn.dataset.confirmJob,btn.dataset.confirmResult);
 });
+
+function mpPhotoButton(j){return '<div class="toolbar"><button type="button" data-photo-job="'+mpEscape(j.id)+'">📷 Dokumentasi Foto</button></div>'}
+let mpPhotoJob=null,mpPhotoStage='before',mpPhotoBusy=false,mpPhotoSeq=0;
+document.addEventListener('click',e=>{const b=e.target.closest('[data-photo-job]');if(b)mpOpenPhoto(b.dataset.photoJob)});
+function mpOpenPhoto(id){
+ const j=mpJobs.find(x=>String(x.id)===String(id));if(!j||mpHasUnitId(j))return;
+ mpPhotoJob=id;mpPhotoStage='before';
+ let d=document.getElementById('mpPhotoDialog');
+ if(!d){d=document.createElement('dialog');d.id='mpPhotoDialog';d.style.cssText='width:min(92vw,650px);max-height:85vh;overflow:auto;border:1px solid #cbd5e1;border-radius:16px;padding:18px;';
+ d.innerHTML='<h2>Dokumentasi Pekerjaan</h2><p id="mpPhotoTitle"></p><div class="toolbar" id="mpPhotoTabs"></div><div class="toolbar"><button type="button" id="mpPhotoCam">📷 Ambil Foto</button><button type="button" id="mpPhotoUpload">Galeri</button><button type="button" id="mpPhotoClose">Tutup</button></div><input hidden type="file" id="mpPhotoCameraFile" accept="image/*" capture="environment"><input hidden type="file" id="mpPhotoGalleryFile" accept="image/*" multiple><p id="mpPhotoMessage" role="status"></p><div id="mpPhotoItems"></div>';
+ document.body.appendChild(d);
+ d.querySelector('#mpPhotoCam').onclick=()=>d.querySelector('#mpPhotoCameraFile').click();
+ d.querySelector('#mpPhotoUpload').onclick=()=>d.querySelector('#mpPhotoGalleryFile').click();
+ d.querySelector('#mpPhotoClose').onclick=()=>{if(!mpPhotoBusy)d.close()};
+ d.addEventListener('cancel',e=>{if(mpPhotoBusy)e.preventDefault()});
+ for(const id of ['mpPhotoCameraFile','mpPhotoGalleryFile'])d.querySelector('#'+id).onchange=async e=>{const f=[...e.target.files];e.target.value='';await mpSavePhotos(f,id==='mpPhotoCameraFile')};
+ }
+ d.querySelector('#mpPhotoTitle').textContent=j.desc; if(!d.open)d.showModal();mpPhotoRefresh();
+}
+async function mpPhotoRefresh(){
+ const seq=++mpPhotoSeq;const job=mpPhotoJob,stage=mpPhotoStage;
+ const tabs=document.getElementById('mpPhotoTabs'),items=document.getElementById('mpPhotoItems'),msg=document.getElementById('mpPhotoMessage');
+ tabs.replaceChildren();for(const n of ['before','progress','after']){const b=document.createElement('button');b.type='button';b.textContent=n[0].toUpperCase()+n.slice(1);b.disabled=mpPhotoBusy;b.style.fontWeight=n===stage?'bold':'normal';b.setAttribute('aria-pressed',String(n===stage));b.onclick=()=>{mpPhotoStage=n;mpPhotoRefresh()};tabs.appendChild(b)}
+ items.textContent='Memuat foto...';msg.textContent='';
+ const bucket=mpClient.storage.from('work-photos');const {data,error}=await bucket.list(job+'/'+stage,{limit:100,sortBy:{column:'created_at',order:'desc'}});
+ if(seq!==mpPhotoSeq)return;if(error){items.textContent='Gagal memuat foto: '+error.message;return}
+ items.replaceChildren();if(!data?.length){items.textContent='Belum ada foto.';return}
+ for(const f of data){if(!f.id)continue;const path=job+'/'+stage+'/'+f.name;const {data:signed,error:err}=await bucket.createSignedUrl(path,600);if(seq!==mpPhotoSeq)return;if(err)continue;
+ const wrap=document.createElement('div');wrap.style.cssText='display:inline-flex;vertical-align:top;flex-direction:column;width:46%;margin:2%;gap:6px;';
+ const img=document.createElement('img');img.src=signed.signedUrl;img.alt=stage;img.loading='lazy';img.style.cssText='width:100%;object-fit:contain;border-radius:8px';img.onclick=()=>window.open(signed.signedUrl,'_blank','noopener');
+ const b=document.createElement('button');b.textContent='Simpan ke Galeri';b.onclick=async()=>{try{const {data:blob,error}=await bucket.download(path);if(error)throw error;const file=new File([blob],f.name,{type:blob.type});if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file]});return}catch(e){if(e.name==='AbortError')return}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}catch(e){msg.textContent=e.message}};
+ wrap.append(img,b);items.appendChild(wrap);
+ }
+}
+async function mpSavePhotos(files,camera){
+ if(!files.length||mpPhotoBusy)return;const job=mpPhotoJob,stage=mpPhotoStage;mpPhotoBusy=true;
+ const msg=document.getElementById('mpPhotoMessage');const controls=[...document.querySelectorAll('#mpPhotoDialog button')];controls.forEach(b=>b.disabled=true);
+ let count=0,fail=[];
+ try{for(const file of files){try{
+ if(!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type))throw Error('Format foto tidak didukung');
+ if(file.size>10485760)throw Error('Foto melebihi 10 MB');
+ const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/heic':'heic','image/heif':'heif'})[file.type];
+ const path=job+'/'+stage+'/'+Date.now()+'-'+crypto.randomUUID()+'.'+ext;
+ msg.textContent='Menyimpan foto...';
+ const {error}=await mpClient.storage.from('work-photos').upload(path,file,{contentType:file.type,upsert:false});if(error)throw error;count++;
+ }catch(e){fail.push(e.message)}}}finally{mpPhotoBusy=false;controls.forEach(b=>b.disabled=false);await mpPhotoRefresh();msg.textContent=count+' foto tersimpan.'+(fail.length?' Gagal: '+fail.join('; '):'')}
+}
 function mpRenderJobs(){
  const box=document.getElementById('mpJobList');if(!box)return;
  if(!mpJobsReady){box.textContent='Belum terhubung ke database.';return}
