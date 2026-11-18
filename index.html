@@ -427,7 +427,7 @@ function mpOpenPhoto(id){
  mpPhotoJob=id;mpPhotoStage='before';
  let d=document.getElementById('mpPhotoDialog');
  if(!d){d=document.createElement('dialog');d.id='mpPhotoDialog';d.style.cssText='width:min(92vw,650px);max-height:85vh;overflow:auto;border:1px solid #cbd5e1;border-radius:16px;padding:18px;';
- d.innerHTML='<h2>Dokumentasi Pekerjaan</h2><p id="mpPhotoTitle"></p><div class="toolbar" id="mpPhotoTabs"></div><div class="toolbar"><button type="button" id="mpPhotoCam">📷 Ambil Foto</button><button type="button" id="mpPhotoUpload">Galeri</button><button type="button" id="mpPhotoClose">Tutup</button></div><input hidden type="file" id="mpPhotoCameraFile" accept="image/*" capture="environment"><input hidden type="file" id="mpPhotoGalleryFile" accept="image/*" multiple><p id="mpPhotoMessage" role="status"></p><div id="mpPhotoItems"></div>';
+ d.innerHTML='<h2>Dokumentasi Pekerjaan</h2><small>Data alamat: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></small><p id="mpPhotoTitle"></p><div class="toolbar" id="mpPhotoTabs"></div><div class="toolbar"><button type="button" id="mpPhotoCam">📷 Ambil Foto</button><button type="button" id="mpPhotoUpload">Galeri</button><button type="button" id="mpPhotoClose">Tutup</button></div><input hidden type="file" id="mpPhotoCameraFile" accept="image/*" capture="environment"><input hidden type="file" id="mpPhotoGalleryFile" accept="image/*" multiple><p id="mpPhotoMessage" role="status"></p><div id="mpPhotoItems"></div>';
  document.body.appendChild(d);
  d.querySelector('#mpPhotoCam').onclick=()=>d.querySelector('#mpPhotoCameraFile').click();
  d.querySelector('#mpPhotoUpload').onclick=()=>d.querySelector('#mpPhotoGalleryFile').click();
@@ -472,6 +472,25 @@ async function mpGalleryStamp(file){
  const location=Number.isFinite(meta.latitude)&&Number.isFinite(meta.longitude)?meta.latitude.toFixed(6)+', '+meta.longitude.toFixed(6):'Lokasi asli tidak tersedia';
  return mpStampCamera(file,{taken,location});
 }
+
+const mpAddressCache=new Map();
+let mpAddressQueue=Promise.resolve(),mpAddressLast=0;
+async function mpResolveAddress(location){
+ if(!/^-?\d+\.\d+, -?\d+\.\d+$/.test(location))return [location];
+ if(mpAddressCache.has(location))return mpAddressCache.get(location);
+ if(!confirm('Cari alamat GPS melalui layanan OpenStreetMap? Koordinat foto akan dikirim ke layanan tersebut.'))return [location];
+ const task=mpAddressQueue.then(async()=>{
+ try{
+ await new Promise(r=>setTimeout(r,Math.max(0,1100-(Date.now()-mpAddressLast))));
+ const [lat,lon]=location.split(', ');mpAddressLast=Date.now();
+ const response=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=id&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{signal:AbortSignal.timeout(10000)});
+ if(!response.ok)return [location];const data=await response.json();const a=data.address||{};
+ const road=[a.house_number,a.road||a.pedestrian||a.residential].filter(Boolean).join(' ');
+ const lines=[road,a.village||a.suburb||a.neighbourhood,a.city_district||a.district||a.municipality||a.county,a.city||a.town||a.regency||a.county,a.state].filter(Boolean);
+ const result=[...new Set(lines)];if(!result.length)return [location];mpAddressCache.set(location,result);return result;
+ }catch(e){return [location]}
+ });mpAddressQueue=task.then(()=>{});return task;
+}
 async function mpStampCamera(file,original=null){
  const taken=original?original.taken:new Date();
  const location=original?original.location:await new Promise(resolve=>{
@@ -486,7 +505,7 @@ async function mpStampCamera(file,original=null){
  const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
  const parts=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(taken||new Date());
  const get=k=>parts.find(p=>p.type===k)?.value||'';
- const lines=[taken?get('day')+' '+get('month')+' '+get('year')+' '+get('hour')+':'+get('minute')+':'+get('second'):'Waktu pengambilan tidak tersedia',location];
+ const lines=[taken?get('day')+' '+get('month')+' '+get('year')+' '+get('hour')+':'+get('minute')+':'+get('second'):'Waktu pengambilan tidak tersedia',...await mpResolveAddress(location)];
  const size=Math.max(12,Math.round(c.width*0.024)),pad=Math.round(size*0.7);
  ctx.font=size+'px Arial,sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillStyle='white';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=3;
  lines.forEach((line,i)=>ctx.fillText(line,c.width-pad,c.height-pad-(lines.length-1-i)*size*1.25,c.width-pad*2));
