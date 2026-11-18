@@ -432,13 +432,20 @@ function mpWaName(line){
  const names={'fredy':'Fredy A.','fredy a.':'Fredy A.','adi':'Adi K.','adi k.':'Adi K.','sugi':'Sugiyanto','sugiyanto':'Sugiyanto','har':'Haryanto','haryanto':'Haryanto','maryoto':'Maryoto','matyoto':'Maryoto','ferry':'Ferry'};
  return names[raw]||null;
 }
+function mpWaTechnicianNames(value){
+ const aliases=[['Fredy A.',/\b(?:fredy(?:\s+a\.?)?|fredi)\b/gi],['Adi K.',/\badi(?:\s+k\.?)?\b/gi],['Sugiyanto',/\b(?:sugiyanto|sugi)\b/gi],['Haryanto',/\b(?:haryanto|hary)\b/gi],['Maryoto',/\b(?:maryoto|matyoto)\b/gi],['Ferry',/\b(?:ferry|feri)\b/gi]];
+ const found=[];
+ for(const [name,regex] of aliases){for(const match of value.matchAll(regex))found.push({name,index:match.index})}
+ return found.sort((a,b)=>a.index-b.index).map(x=>x.name).filter((name,i,all)=>all.indexOf(name)===i);
+}
 function mpPreviewWhatsApp(){
  const input=document.getElementById('mpWaInput').value,preview=document.getElementById('mpWaPreview');
- mpWaParsed=[];mpWaDate=mpTodayDate();let tech='',absence=[],ignored=0;
+ mpWaParsed=[];mpWaDate=mpTodayDate();let tech='',absence=[],ignored=0;let mpWaHeadingAssistants=[];
  for(const line of input.split(/\r?\n/)){
   const x=line.trim();if(!x)continue;
   if(!/^[-•]/.test(x)){
-   const name=mpWaName(x);if(name){tech=name;continue}
+   const name=mpWaName(x);if(name){tech=name;mpWaHeadingAssistants=[];continue}
+   const headingNames=mpWaTechnicianNames(x.replace(/[*_:]/g,' '));if(headingNames.length&&headingNames.length<=3&&x.replace(/[*_:]/g,' ').trim().split(/\s+/).length<=6){tech=headingNames[0];mpWaHeadingAssistants=headingNames.slice(1);continue}
    if(tech&&/^(izin|sakit|cuti)(\b|\s)/i.test(x)){absence.push(tech+': '+x);continue}
    ignored++;continue;
   }
@@ -448,7 +455,9 @@ function mpPreviewWhatsApp(){
   let time=null;
   if(match){const value=match[1].padStart(2,'0')+':'+match[2];if(/^([01]\d|2[0-3]):[0-5]\d$/.test(value)){time=value;desc=desc.slice(0,match.index).trim()}}
   const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
-  mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants:[],work_date:mpWaDate});
+  const named=mpWaTechnicianNames(desc);
+  const assistants=[...new Set([...mpWaHeadingAssistants,...named])].filter(n=>n!==tech);
+  mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants,work_date:mpWaDate});
  }
  mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
