@@ -506,9 +506,9 @@ async function mpStampCamera(file,original=null){
  const parts=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(taken||new Date());
  const get=k=>parts.find(p=>p.type===k)?.value||'';
  const lines=[taken?get('day')+' '+get('month')+' '+get('year')+' '+get('hour')+':'+get('minute')+':'+get('second'):'Waktu pengambilan tidak tersedia',...await mpResolveAddress(location)];
- const size=Math.max(12,Math.round(c.width*0.024)),pad=Math.round(size*0.7);
- ctx.font=size+'px Arial,sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillStyle='white';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=3;
- lines.forEach((line,i)=>ctx.fillText(line,c.width-pad,c.height-pad-(lines.length-1-i)*size*1.25,c.width-pad*2));
+ const size=Math.max(12,Math.round(Math.min(c.width,c.height)*0.04)),pad=Math.max(4,Math.round(size*0.16));
+ ctx.font=size+'px Arial,sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillStyle='white';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=Math.max(1,size*0.065);ctx.shadowOffsetY=Math.max(1,size*0.025);
+ lines.forEach((line,i)=>ctx.fillText(line,c.width-pad,c.height-pad-(lines.length-1-i)*size*1.12,c.width-pad*2));
  const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',0.92));if(!blob)throw Error('Gagal membuat timestamp');
  return new File([blob],'camera.jpg',{type:'image/jpeg'});
  }finally{URL.revokeObjectURL(url)}
