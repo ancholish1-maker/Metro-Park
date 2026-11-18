@@ -444,10 +444,10 @@ document.getElementById('mpMonitorList').addEventListener('click',e=>{
  const btn=e.target.closest('button[data-confirm-job]');if(btn)mpConfirmJob(btn.dataset.confirmJob,btn.dataset.confirmResult);
 });
 
-function mpEditMonitorButton(j){return mpHasUnitId(j)?'':'<button type="button" data-monitor-edit="'+mpEscape(j.id)+'">Edit Status</button>'}
+function mpEditMonitorButton(j){return mpHasUnitId(j)||j.status!=='Done'?'':'<button type="button" data-monitor-edit="'+mpEscape(j.id)+'">Edit Status</button>'}
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-monitor-edit]');if(!b||!mpMayWrite())return;
- const j=mpJobs.find(x=>x.id===b.dataset.monitorEdit);if(!j||mpHasUnitId(j))return;
+ const j=mpJobs.find(x=>x.id===b.dataset.monitorEdit);if(!j||mpHasUnitId(j)||j.status!=='Done')return;
  if(!mpIsAdmin&&j.approval_status==='pending'){alert('Pekerjaan sedang menunggu approval SPV.');return}
  const d=document.createElement('dialog');d.style.cssText='width:min(90vw,420px);border:1px solid #cbd5e1;border-radius:16px;padding:20px';
  d.innerHTML='<form><h2>Edit Status</h2><p data-title></p><select aria-label="Status"><option>On Schedule</option><option>On Progress</option><option>Done</option></select><p role="status"></p><div class="toolbar"><button type="submit">Simpan Perubahan</button><button type="button" data-cancel>Batal</button></div></form>';
