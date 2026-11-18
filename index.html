@@ -436,14 +436,31 @@ function mpRenderMonitoring(){
  document.getElementById('mpMonitorDone').textContent=done.length;
  box.innerHTML=pending.length?pending.map(j=>{
   const buttons=j.approval_status==='pending'&&!mpIsAdmin?'<p style="color:#b45309">Menunggu Approval SPV</p>':true?'<div class="toolbar"><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Selesai">'+(j.approval_status==='pending'?'✓ Setujui':mpIsAdmin?'✓ Selesai':'Ajukan Selesai')+'</button><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Belum Selesai">'+(j.approval_status==='pending'?'Tolak':'Belum Selesai')+'</button></div>':'<p class="muted">Menunggu akses Staff FO.</p>';
-  return '<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">'+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+' · '+mpEscape(j.status)+'</p>'+(j.confirmation_result?'<p class="muted">Konfirmasi: '+mpEscape(j.confirmation_result)+'</p>':'')+buttons+mpPhotoButton(j)+mpActivityButton(j)+'</div>';
+  return '<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">'+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+' · '+mpEscape(j.status)+'</p>'+(j.confirmation_result?'<p class="muted">Konfirmasi: '+mpEscape(j.confirmation_result)+'</p>':'')+buttons+mpEditMonitorButton(j)+mpPhotoButton(j)+mpActivityButton(j)+'</div>';
  }).join(''):'<p class="muted">Tidak ada pekerjaan yang belum selesai.</p>';
- doneBox.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">Tanggal plotting: '+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+'</p><p style="color:#15803d;font-weight:700">✓ Done</p>'+(j.confirmed_at?'<p class="muted">Dikonfirmasi: '+mpEscape(new Date(j.confirmed_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}))+' WIB</p>':'')+mpPhotoButton(j)+mpActivityButton(j)+'</div>').join(''):'<p class="muted">Belum ada pekerjaan selesai tanpa ID Unit.</p>';
+ doneBox.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">Tanggal plotting: '+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+'</p><p style="color:#15803d;font-weight:700">✓ Done</p>'+(j.confirmed_at?'<p class="muted">Dikonfirmasi: '+mpEscape(new Date(j.confirmed_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}))+' WIB</p>':'')+mpEditMonitorButton(j)+mpPhotoButton(j)+mpActivityButton(j)+'</div>').join(''):'<p class="muted">Belum ada pekerjaan selesai tanpa ID Unit.</p>';
 }
 document.getElementById('mpMonitorList').addEventListener('click',e=>{
  const btn=e.target.closest('button[data-confirm-job]');if(btn)mpConfirmJob(btn.dataset.confirmJob,btn.dataset.confirmResult);
 });
 
+function mpEditMonitorButton(j){return mpHasUnitId(j)?'':'<button type="button" data-monitor-edit="'+mpEscape(j.id)+'">Edit Status</button>'}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-monitor-edit]');if(!b||!mpMayWrite())return;
+ const j=mpJobs.find(x=>x.id===b.dataset.monitorEdit);if(!j||mpHasUnitId(j))return;
+ if(!mpIsAdmin&&j.approval_status==='pending'){alert('Pekerjaan sedang menunggu approval SPV.');return}
+ const d=document.createElement('dialog');d.style.cssText='width:min(90vw,420px);border:1px solid #cbd5e1;border-radius:16px;padding:20px';
+ d.innerHTML='<form><h2>Edit Status</h2><p data-title></p><select aria-label="Status"><option>On Schedule</option><option>On Progress</option><option>Done</option></select><p role="status"></p><div class="toolbar"><button type="submit">Simpan Perubahan</button><button type="button" data-cancel>Batal</button></div></form>';
+ d.querySelector('[data-title]').textContent=j.desc;const sel=d.querySelector('select');sel.value=j.status;
+ d.querySelector('[data-cancel]').onclick=()=>d.close();d.addEventListener('close',()=>d.remove());document.body.appendChild(d);d.showModal();
+ d.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const status=sel.value;if(status===j.status){d.close();return}if(status==='Done'&&!mpIsAdmin){d.close();await mpConfirmJob(j.id,'Selesai');return}
+ const changes={status,confirmation_result:status==='Done'?'Selesai':null,confirmed_at:status==='Done'?new Date().toISOString():null};
+ if(mpIsAdmin)changes.approval_status=status==='Done'?'approved':null;
+ const save=d.querySelector('[type=submit]');save.disabled=true;
+ const {error}=await mpClient.from('technician_jobs').update(changes).eq('id',j.id);
+ if(error){d.querySelector('[role=status]').textContent=error.message;save.disabled=false;return}d.close();await mpLoadJobs();
+ };
+});
 function mpActivityButton(j){return mpIsAdmin?'<button type="button" data-wo-activity="'+mpEscape(j.id)+'">Riwayat Aktivitas</button>':''}
 document.addEventListener('click',async e=>{
  const trigger=e.target.closest('[data-wo-activity]');if(!trigger||!mpIsAdmin)return;
