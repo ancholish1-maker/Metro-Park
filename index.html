@@ -62,9 +62,11 @@ button{font:inherit;line-height:1.3;white-space:normal;overflow-wrap:break-word;
 </style>
 <style>#mpApprovalCard{box-sizing:border-box;width:100%;text-align:left;border:1px solid #86d6a3;border-radius:18px;background:#f0fdf4;color:#166534;padding:16px;margin:14px 0;cursor:pointer;font:inherit;box-shadow:0 3px 12px #00000008}#mpApprovalCard.has-pending{background:#fff8eb;border-color:#f4b95c;color:#a65308}.mp-approval-top{display:flex;align-items:center;gap:12px}.mp-approval-bell{display:grid;place-items:center;width:48px;height:48px;flex-shrink:0;border-radius:14px;background:#dcfce7}.has-pending .mp-approval-bell{background:#ffedc7}.has-pending .mp-approval-bell svg{animation:mpRing 2.8s ease-in-out infinite}.mp-approval-copy{flex:1;min-width:0}.mp-approval-copy strong,.mp-approval-copy small{display:block}.mp-approval-copy small{font-size:12px;margin-top:4px;opacity:.8}#mpApprovalCount{font-size:32px;line-height:1}.mp-approval-bottom{display:flex;justify-content:space-between;border-top:1px solid currentColor;margin-top:12px;padding-top:10px;font-size:13px}#mpApprovalCard:focus-visible{outline:3px solid #2563eb;outline-offset:3px}@keyframes mpRing{0%,70%,100%{transform:rotate(0)}75%,85%{transform:rotate(12deg)}80%,90%{transform:rotate(-12deg)}}@media(prefers-reduced-motion:reduce){.has-pending .mp-approval-bell svg{animation:none}}</style><style>
 .wr-job{padding:12px!important}.wr-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}.wr-head>button{padding:4px!important;min-width:36px!important;min-height:40px!important;margin:0!important;border-radius:8px!important;flex:none}.wr-head label{flex:1;min-width:0;line-height:1.35;font-size:14px;overflow-wrap:anywhere}.wr-head input{width:auto!important;margin-right:5px}.wr-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.wr-stage{min-width:0;display:flex;flex-direction:column;gap:6px}.wr-stage-title{text-align:center;font-size:11px;font-weight:700;letter-spacing:.08em;color:#64748b}.wr-thumb{width:100%;padding:3px!important;border-radius:8px!important;background:#f8fafc!important;overflow:hidden}.wr-controls{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}.wr-controls button{min-width:36px;padding:5px 10px!important;border-radius:8px;font-size:16px}.mobile-nav button{min-width:0;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important;font-size:clamp(9px,2.65vw,12px)!important;padding-left:1px!important;padding-right:1px!important}
+</style><style>
+.mp-profile{position:relative;flex:none;margin-left:auto;z-index:1100}.mp-profile-toggle{display:grid;place-items:center;width:42px;height:42px;padding:0!important;border:1px solid #ffffff30;border-radius:50%!important;background:#294564!important;color:white!important}.mp-profile-menu{position:absolute;right:0;top:calc(100% + 10px);width:220px;max-width:80vw;background:white;color:#102b4e;border:1px solid #dbe2ea;border-radius:12px;padding:14px;box-shadow:0 8px 24px #0002;display:flex;flex-direction:column;gap:8px}.mp-profile-menu[hidden]{display:none}.mp-profile-menu small{color:#64748b;margin-bottom:6px}.mp-profile-menu #mp-logout,.mp-profile-menu #mp-password-settings{position:static!important;inset:auto!important;width:100%;margin:0!important;border:0!important;border-top:1px solid #e2e8f0!important;border-radius:0!important;background:white!important;color:#102b4e!important;text-align:left;padding:10px 0!important;font-size:14px!important;box-shadow:none!important}.mp-profile-menu #mp-logout{color:#dc2626!important}@media(max-width:600px){.mp-trial-label{display:none}}
 </style></head>
 <body>
-<header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
+<header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div class="mp-trial-label" style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
 <div class="layout">
 <aside><nav id="sideNav"><button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="tower">▤ Master Tower</button><button data-page="dotmatrix">▦ Dot Matrix</button><button data-page="plotting">▣ Plottingan Teknisi</button><button data-page="monitoring">◉ Monitoring Pekerjaan</button><button data-page="weekly">▧ Laporan Mingguan</button></nav></aside>
 <main>
@@ -308,12 +310,19 @@ async function mpCheck(user) {
       await mpClient.auth.signOut();
       location.reload();
     };
-    document.body.appendChild(btn);
+    const profile=document.createElement("div");profile.className="mp-profile";profile.innerHTML='<button type="button" class="mp-profile-toggle" aria-label="Menu profil" aria-expanded="false"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div class="mp-profile-menu" hidden><strong></strong><small></small></div>';
+    const menu=profile.querySelector(".mp-profile-menu"),toggle=profile.querySelector(".mp-profile-toggle");
+    menu.querySelector("strong").textContent=data.role==="admin"?"Olish-SPV":"Staff FO";
+    menu.querySelector("small").textContent=data.role==="admin"?"Supervisor / Admin":"Staff FO";
+    const closeMenu=()=>{menu.hidden=true;toggle.setAttribute("aria-expanded","false")};
+    toggle.onclick=()=>{menu.hidden=!menu.hidden;toggle.setAttribute("aria-expanded",String(!menu.hidden))};
+    document.addEventListener("click",e=>{if(!profile.contains(e.target))closeMenu()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
+    document.querySelector("header").appendChild(profile);
     const pw=document.createElement("button");
     pw.id="mp-password-settings";pw.textContent="Ganti Password";
-    pw.style.cssText="position:fixed;right:16px;top:65px;z-index:1000;border-radius:10px;padding:10px";
-    pw.onclick=()=>document.getElementById("mp-password-dialog").showModal();
-    document.body.appendChild(pw);
+    
+    pw.onclick=()=>{closeMenu();document.getElementById("mp-password-dialog").showModal()};
+    btn.textContent="Logout";menu.append(pw,btn);
     const dlg=document.createElement("dialog");dlg.id="mp-password-dialog";dlg.style.cssText="border:1px solid #cbd5e1;border-radius:16px;padding:20px;width:min(360px,85vw)";
     dlg.innerHTML='<form style="display:grid;gap:12px"><h2>Ganti Password</h2><label>Password saat ini<input name="old" type="password" autocomplete="current-password" required></label><label>Password baru<input name="next" type="password" autocomplete="new-password" minlength="8" required></label><label>Konfirmasi password baru<input name="repeat" type="password" autocomplete="new-password" minlength="8" required></label><p role="status"></p><button type="submit">Simpan Password</button><button type="button" data-close>Batal</button></form>';
     document.body.appendChild(dlg);
