@@ -449,7 +449,9 @@ async function mpPhotoRefresh(){
  const wrap=document.createElement('div');wrap.style.cssText='display:inline-flex;vertical-align:top;flex-direction:column;width:46%;margin:2%;gap:6px;';
  const img=document.createElement('img');img.src=signed.signedUrl;img.alt=stage;img.loading='lazy';img.style.cssText='width:100%;object-fit:contain;border-radius:8px';img.onclick=()=>window.open(signed.signedUrl,'_blank','noopener');
  const b=document.createElement('button');b.textContent='Simpan ke Galeri';b.onclick=async()=>{try{const {data:blob,error}=await bucket.download(path);if(error)throw error;const file=new File([blob],f.name,{type:blob.type});if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file]});return}catch(e){if(e.name==='AbortError')return}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}catch(e){msg.textContent=e.message}};
- wrap.append(img,b);items.appendChild(wrap);
+ const del=document.createElement('button');del.type='button';del.textContent='Hapus Foto';del.style.color='#b91c1c';
+ del.onclick=async()=>{if(mpPhotoBusy||!confirm('Hapus foto ini secara permanen?'))return;mpPhotoBusy=true;const controls=[...document.querySelectorAll('#mpPhotoDialog button')];controls.forEach(x=>x.disabled=true);let message='';try{const {data,error}=await bucket.remove([path]);if(error)throw error;if(!data?.length)throw Error('Foto tidak terhapus atau akses ditolak');message='Foto berhasil dihapus.'}catch(e){message='Gagal menghapus: '+e.message}finally{mpPhotoBusy=false;controls.forEach(x=>x.disabled=false);await mpPhotoRefresh();msg.textContent=message}};
+ wrap.append(img,b,del);items.appendChild(wrap);
  }
 }
 
