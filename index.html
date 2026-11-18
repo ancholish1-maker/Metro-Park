@@ -323,6 +323,20 @@ async function mpLoadJobs(){
  if(error){mpNotice('Database plotting belum siap: '+error.message+'. Jangan input pekerjaan dulu.');return}
  mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff: hanya melihat.');mpRenderJobs();
 }
+function mpJobPeople(j){return [j.tech,...(j.assistants||[])].filter((n,i,a)=>n&&a.findIndex(x=>x.toLowerCase()===n.toLowerCase())===i)}
+function mpDisplayJobs(jobs){
+ const names=[...mpTechOrder,...new Set(jobs.flatMap(mpJobPeople).filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase())))];
+ return names.map(name=>{
+ const entries=jobs.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
+ if(!entries.length)return '';
+ return '<h3 style="margin:14px 0 6px;font-size:16px">'+mpEscape(name)+'</h3>'+entries.map(j=>{
+ const helping=j.tech.toLowerCase()!==name.toLowerCase();
+ return '<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+
+ (helping?'<p class="muted">Membantu '+mpEscape(j.tech)+'</p>':((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':''))+
+ '<p class="muted">'+mpEscape(j.status)+'</p></div>';
+ }).join('');
+ }).join('');
+}
 function mpRenderJobs(){
  const box=document.getElementById('mpJobList');if(!box)return;
  if(!mpJobsReady){box.textContent='Belum terhubung ke database.';return}
@@ -330,18 +344,18 @@ function mpRenderJobs(){
  const searchBox=document.getElementById('mpSearchResults');
  if(searchBox){
   if(q.trim()){
-   const matches=mpJobs.filter(j=>[j.tech,j.unit,j.desc].join(' ').toLowerCase().includes(q.trim()));
+   const matches=mpJobs.filter(j=>[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q.trim()));
    searchBox.style.display='block';
    searchBox.innerHTML='<div style="border:1px solid #dbe3ee;border-radius:12px;padding:12px;background:#f8fafc"><b>Hasil pencarian: '+matches.length+' pekerjaan</b>'+
     (matches.length?matches.map(j=>'<div style="padding:10px 0;border-top:1px solid #dbe3ee;margin-top:8px"><b>'+mpEscape(j.tech)+'</b><div>'+mpEscape(j.desc)+'</div><div class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+(j.status==='Done'?'🟢':j.status==='On Progress'?'🔴':'⚪')+' '+mpEscape(j.status)+'</div></div>').join(''):'<p class="muted" style="margin:8px 0 0">Tidak ditemukan di pekerjaan tersimpan. Pastikan pekerjaan sudah disimpan ke database.</p>')+'</div>';
   }else{searchBox.style.display='none';searchBox.replaceChildren()}
  }
- let rows=mpJobs.filter(j=>j.status!=='Done'&&(!f||j.status===f)&&[j.tech,j.unit,j.desc].join(' ').toLowerCase().includes(q));
+ let rows=mpJobs.filter(j=>j.status!=='Done'&&(!f||j.status===f)&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q));
  rows.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
- box.innerHTML=rows.length?rows.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpIsAdmin?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpIsAdmin?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+'</div>').join(''):'<p class="muted">Belum ada pekerjaan.</p>';
+ box.innerHTML=rows.length?mpDisplayJobs(rows):'<p class="muted">Belum ada pekerjaan.</p>';
 
  const history=document.getElementById('mpJobHistory'),count=document.getElementById('mpJobHistoryCount');
- const done=mpJobs.filter(j=>j.status==='Done'&&[j.tech,j.unit,j.desc].join(' ').toLowerCase().includes(q));
+ const done=mpJobs.filter(j=>j.status==='Done'&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q));
  if(count)count.textContent=mpJobs.filter(j=>j.status==='Done').length;
  if(history)history.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p><select aria-label="Status pekerjaan selesai" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpIsAdmin?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit"><option value="On Schedule">⚪ On Schedule</option><option value="On Progress">🔴 On Progress</option><option value="Done" selected>🟢 Done</option></select></div>').join(''):'<p class="muted">Belum ada pekerjaan selesai.</p>';
 
@@ -361,16 +375,17 @@ function mpCopyWhatsApp(){
  const list=fromPreview?mpWaParsed.map(j=>({tech:j.tech,desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',assistants:j.assistants||[]})):mpJobs.slice();
  if(!list.length){alert('Belum ada pekerjaan untuk disalin.');return}
  const lines=['*PLOTTINGAN TEKNISI CIVIL*',''];
- const names=[...mpTechOrder,...[...new Set(list.map(j=>j.tech))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
+ const names=[...mpTechOrder,...[...new Set(list.flatMap(mpJobPeople))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
  for(const name of names){
-  const jobs=list.filter(j=>j.tech.toLowerCase()===name.toLowerCase());
+  const jobs=list.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
   if(!jobs.length)continue;
   lines.push('*'+name+'*');
   for(const j of jobs){
    let d=j.desc.trim();
    if(j.time)d+=' jam '+j.time.replace(':','.');
    lines.push('- '+d);
-   if(j.assistants&&j.assistants.length)lines.push('  Pendamping: '+j.assistants.join(', '));
+   if(j.tech.toLowerCase()!==name.toLowerCase())lines.push('  Membantu '+j.tech);
+   else if(j.assistants&&j.assistants.length)lines.push('  Pendamping: '+j.assistants.join(', '));
   }
   lines.push('');
  }
