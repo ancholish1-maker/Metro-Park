@@ -523,9 +523,27 @@ function mpPreviewWhatsApp(){
   const assistants=[...new Set([...mpWaHeadingAssistants,...named])].filter(n=>n!==tech);
   mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants,work_date:mpWaDate});
  }
- mpWaMeta={absence,ignored};mpRenderWaPreview();
+ mpWaParsed=mpMergeSharedWhatsApp(mpWaParsed);mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
 
+function mpSharedWorkKey(desc){
+ return String(desc||'').toLowerCase().replace(/\(\s*bareng\s+(?:pak\s+)?(?:adi(?:\s+k\.?)?|feri|ferry)\s*\)/gi,'').replace(/\s+/g,' ').trim();
+}
+function mpMergeSharedWhatsApp(rows){
+ const result=[];
+ for(const j of rows){
+  const key=mpSharedWorkKey(j.description);
+  const partner=result.find(p=>p.work_date===j.work_date&&mpSharedWorkKey(p.description)===key&&p.tech!==j.tech&&
+   ((p.assistants||[]).includes(j.tech)||(j.assistants||[]).includes(p.tech)));
+  if(!partner){result.push({...j,assistants:[...(j.assistants||[])]});continue}
+  // Use the Adi entry as the canonical job when both Adi and Ferry report the same task.
+  const primary=j.tech==='Adi K.'&&partner.tech==='Ferry'?j:partner;
+  const other=primary===j?partner:j;
+  primary.assistants=[...new Set([...(primary.assistants||[]),other.tech,...(other.assistants||[])])].filter(n=>n!==primary.tech);
+  if(primary===j){result[result.indexOf(partner)]={...primary}}
+ }
+ return result;
+}
 let mpWaMeta={absence:[],ignored:0},mpWaEditing=-1;
 function mpRenderWaPreview(){
  const p=document.getElementById('mpWaPreview');
