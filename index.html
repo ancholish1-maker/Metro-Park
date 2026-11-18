@@ -66,7 +66,7 @@ button{font:inherit;line-height:1.3;white-space:normal;overflow-wrap:break-word;
 <div class="layout">
 <aside><nav id="sideNav"><button class="active" data-page="dashboard">▦ Dashboard</button><button data-page="tower">▤ Master Tower</button><button data-page="upload">⇧ Upload Dot Matrix</button><button data-page="history">◷ Riwayat Bulanan</button><button data-page="plotting">▣ Plottingan Teknisi</button><button data-page="monitoring">◉ Monitoring Pekerjaan</button></nav></aside>
 <main>
-<section id="dashboard">
+<section id="dashboard"><button id="mpApprovalCard" type="button" style="display:none;margin:10px 0" onclick="showPage('monitoring');mpMonitorOpen='pending';mpRenderMonitoring();document.getElementById('mpMonitorListPanel').scrollIntoView()">Menunggu Approval · <span id="mpApprovalCount">0</span></button>
 <div class="dashboard-head"><div><h1>Dashboard</h1><p class="sub" style="margin-bottom:0">Ringkasan Fitting Out Metro Park</p></div><span class="dashboard-period" id="mp-dashboard-period">Memuat periode...</span></div>
 <div class="dash-cards">
 <div class="dash-stat primary-stat"><div class="dash-stat-label">Total Renovasi</div><div class="dash-stat-value" id="mp-total-renovasi">—</div><div class="dash-stat-foot">Termasuk FASUM · <span id="mp-current-period">Menunggu arsip bulanan</span></div></div>
@@ -341,7 +341,7 @@ const MP_JOB_KEY='metropark_jobs_v2';
 let mpJobs=[],mpJobsReady=false,mpIsAdmin=false;
 function mpEscape(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function mpNotice(msg){const el=document.getElementById('mpJobNotice');if(el)el.textContent=msg}
-function mpMapJob(j){return {id:j.id,tech:j.tech,unit:j.unit||'',desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',status:j.status,assistants:Array.isArray(j.assistants)?j.assistants:[],work_date:j.work_date,confirmation_result:j.confirmation_result||null,confirmed_at:j.confirmed_at||null}}
+function mpMapJob(j){return {id:j.id,tech:j.tech,unit:j.unit||'',desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',status:j.status,assistants:Array.isArray(j.assistants)?j.assistants:[],work_date:j.work_date,confirmation_result:j.confirmation_result||null,confirmed_at:j.confirmed_at||null,approval_status:j.approval_status||null}}
 async function mpLoadJobs(){
  mpJobsReady=false;mpNotice('Memuat data Supabase...');
  const {data:{user}}=await mpClient.auth.getUser();
@@ -349,9 +349,9 @@ async function mpLoadJobs(){
  const {data:profile,error:pe}=await mpClient.from('profiles').select('role,is_active').eq('id',user.id).single();
  if(pe||!profile?.is_active){mpNotice('Akun tidak memiliki akses.');return}
  mpIsAdmin=profile.role==='admin';
- const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status,assistants,work_date,confirmation_result,confirmed_at').order('created_at',{ascending:true});
+ const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status,assistants,work_date,confirmation_result,confirmed_at,approval_status').order('created_at',{ascending:true});
  if(error){mpNotice('Database plotting belum siap: '+error.message+'. Jangan input pekerjaan dulu.');return}
- mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff: hanya melihat.');mpRenderJobs();
+ mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff FO: plotting dan pengajuan selesai.');mpRenderJobs();
 }
 function mpTodayDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function mpDateLabel(d){if(!d)return 'Tanggal belum tersedia';const [y,m,day]=d.split('-').map(Number);return new Intl.DateTimeFormat('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,day)))}
@@ -366,7 +366,7 @@ function mpDisplayDateJobs(jobs){
  const helping=j.tech.toLowerCase()!==name.toLowerCase();
  return '<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+
  (helping?'<p class="muted">Membantu '+mpEscape(j.tech)+'</p>':((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':''))+
- '<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpIsAdmin?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpIsAdmin?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+'</div>';
+ '<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpJobsReady?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+'</div>';
  }).join('');
  }).join('');
 }
@@ -387,7 +387,7 @@ async function mpConfirmJob(id,result){
  const j=mpJobs.find(x=>String(x.id)===String(id));
  if(!j||mpHasUnitId(j)){alert('Konfirmasi ini hanya untuk pekerjaan tanpa ID Unit.');return}
  if(!confirm('Konfirmasi '+result+' untuk pekerjaan '+j.desc+'?'))return;
- const changes={confirmation_result:result,confirmed_at:new Date().toISOString(),status:result==='Selesai'?'Done':'On Progress'};
+ const changes={confirmation_result:result,confirmed_at:new Date().toISOString(),status:result==='Selesai'&&mpIsAdmin?'Done':'On Progress'}; if(result==='Selesai')changes.approval_status=mpIsAdmin?'approved':'pending'; else if(mpIsAdmin)changes.approval_status='rejected';
  const {error}=await mpClient.from('technician_jobs').update(changes).eq('id',id);
  if(error){alert('Gagal menyimpan konfirmasi: '+error.message);return}
  await mpLoadJobs();
@@ -404,13 +404,13 @@ function mpRenderMonitoring(){
   c.setAttribute('aria-expanded',String(active));c.style.outline=active?'2px solid #2563eb':'';c.style.cursor='pointer';
  });
  if(!mpJobsReady){box.textContent='Data belum siap.';doneBox.textContent='Data belum siap.';return}
- const jobs=mpJobs.filter(j=>!mpHasUnitId(j));
+ const jobs=mpJobs.filter(j=>!mpHasUnitId(j)); document.getElementById('mpApprovalCard').style.display=mpIsAdmin?'':'none';document.getElementById('mpApprovalCount').textContent=jobs.filter(j=>j.approval_status==='pending').length;
  const pending=jobs.filter(j=>j.status!=='Done').sort((a,b)=>(a.work_date||'').localeCompare(b.work_date||''));
  const done=jobs.filter(j=>j.status==='Done').sort((a,b)=>(b.confirmed_at||b.work_date||'').localeCompare(a.confirmed_at||a.work_date||''));
  document.getElementById('mpMonitorPending').textContent=pending.length;
  document.getElementById('mpMonitorDone').textContent=done.length;
  box.innerHTML=pending.length?pending.map(j=>{
-  const buttons=mpIsAdmin?'<div class="toolbar"><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Selesai">✓ Selesai</button><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Belum Selesai">Belum Selesai</button></div>':'<p class="muted">Menunggu akses Staff FO.</p>';
+  const buttons=j.approval_status==='pending'&&!mpIsAdmin?'<p style="color:#b45309">Menunggu Approval SPV</p>':true?'<div class="toolbar"><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Selesai">'+(j.approval_status==='pending'?'✓ Setujui':mpIsAdmin?'✓ Selesai':'Ajukan Selesai')+'</button><button type="button" data-confirm-job="'+mpEscape(j.id)+'" data-confirm-result="Belum Selesai">'+(j.approval_status==='pending'?'Tolak':'Belum Selesai')+'</button></div>':'<p class="muted">Menunggu akses Staff FO.</p>';
   return '<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">'+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+' · '+mpEscape(j.status)+'</p>'+(j.confirmation_result?'<p class="muted">Konfirmasi: '+mpEscape(j.confirmation_result)+'</p>':'')+buttons+mpPhotoButton(j)+'</div>';
  }).join(''):'<p class="muted">Tidak ada pekerjaan yang belum selesai.</p>';
  doneBox.innerHTML=done.length?done.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">Teknisi: '+mpEscape(j.tech)+(j.assistants?.length?' · Pendamping: '+mpEscape(j.assistants.join(', ')):'')+'</p><p class="muted">Tanggal plotting: '+mpEscape(mpDateLabel(j.work_date||mpTodayDate()))+'</p><p style="color:#15803d;font-weight:700">✓ Done</p>'+(j.confirmed_at?'<p class="muted">Dikonfirmasi: '+mpEscape(new Date(j.confirmed_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}))+' WIB</p>':'')+mpPhotoButton(j)+'</div>').join(''):'<p class="muted">Belum ada pekerjaan selesai tanpa ID Unit.</p>';
@@ -550,13 +550,13 @@ function mpRenderJobs(){
  const history=document.getElementById('mpJobHistory'),count=document.getElementById('mpJobHistoryCount');
  const done=mpJobs.filter(j=>j.status==='Done'&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q));
  if(count)count.textContent=mpJobs.filter(j=>j.status==='Done').length;
- if(history)history.innerHTML=done.length?[...new Set(done.map(j=>j.work_date||mpTodayDate()))].sort().reverse().map(date=>'<h3 style="margin:18px 0 10px;font-size:17px;border-bottom:1px solid #dbe3ee;padding-bottom:8px">'+mpEscape(mpDateLabel(date))+'</h3>'+done.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<select aria-label="Status pekerjaan selesai" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpIsAdmin?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit"><option value="On Schedule">⚪ On Schedule</option><option value="On Progress">🔴 On Progress</option><option value="Done" selected>🟢 Done</option></select></div>').join('')).join(''):'<p class="muted">Belum ada pekerjaan selesai.</p>';
+ if(history)history.innerHTML=done.length?[...new Set(done.map(j=>j.work_date||mpTodayDate()))].sort().reverse().map(date=>'<h3 style="margin:18px 0 10px;font-size:17px;border-bottom:1px solid #dbe3ee;padding-bottom:8px">'+mpEscape(mpDateLabel(date))+'</h3>'+done.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<select aria-label="Status pekerjaan selesai" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit"><option value="On Schedule">⚪ On Schedule</option><option value="On Progress">🔴 On Progress</option><option value="Done" selected>🟢 Done</option></select></div>').join('')).join(''):'<p class="muted">Belum ada pekerjaan selesai.</p>';
 
 }
 async function mpSetJobStatus(id,status,el){
  if(!mpMayWrite()||!['On Schedule','On Progress','Done'].includes(status)){mpRenderJobs();return}
  el.disabled=true;
- const {error}=await mpClient.from('technician_jobs').update({status}).eq('id',id);
+ const target=mpJobs.find(j=>j.id===id);if(!mpIsAdmin&&target&&!mpHasUnitId(target)&&status==='Done'){await mpConfirmJob(id,'Selesai');mpRenderJobs();return} const {error}=await mpClient.from('technician_jobs').update({status}).eq('id',id);
  if(error){alert('Gagal mengubah status: '+error.message);mpRenderJobs();return}
  const job=mpJobs.find(j=>String(j.id)===String(id));if(job)job.status=status;
  mpRenderJobs();
@@ -611,7 +611,7 @@ function mpAskJob(old){
  const assistants=[...new Set(assistantInput.split(',').map(x=>x.trim()).filter(x=>x&&x.toLowerCase()!==tech.trim().toLowerCase()))];
  return {tech:tech.trim(),description:desc.trim(),unit:unit.trim()||null,scheduled_time:time.trim()||null,status,assistants,work_date:date}
 }
-function mpMayWrite(){if(!mpJobsReady){alert('Database belum siap.');return false}if(!mpIsAdmin){alert('Hanya admin yang dapat mengubah plotting.');return false}return true}
+function mpMayWrite(){if(!mpJobsReady){alert('Database belum siap.');return false}return true}
 async function mpAddJob(){if(!mpMayWrite())return;let d=mpAskJob();if(!d)return;const {error}=await mpClient.from('technician_jobs').insert(d);if(error)alert('Gagal simpan: '+error.message);else await mpLoadJobs()}
 async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j)return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
 async function mpDeleteJob(id){if(!mpMayWrite()||!confirm('Hapus pekerjaan ini secara permanen?'))return;const {error}=await mpClient.from('technician_jobs').delete().eq('id',id);if(error)alert('Gagal hapus: '+error.message);else await mpLoadJobs()}
