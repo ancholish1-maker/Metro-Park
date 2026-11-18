@@ -311,7 +311,7 @@ const MP_JOB_KEY='metropark_jobs_v2';
 let mpJobs=[],mpJobsReady=false,mpIsAdmin=false;
 function mpEscape(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function mpNotice(msg){const el=document.getElementById('mpJobNotice');if(el)el.textContent=msg}
-function mpMapJob(j){return {id:j.id,tech:j.tech,unit:j.unit||'',desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',status:j.status,assistants:Array.isArray(j.assistants)?j.assistants:[]}}
+function mpMapJob(j){return {id:j.id,tech:j.tech,unit:j.unit||'',desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',status:j.status,assistants:Array.isArray(j.assistants)?j.assistants:[],work_date:j.work_date}}
 async function mpLoadJobs(){
  mpJobsReady=false;mpNotice('Memuat data Supabase...');
  const {data:{user}}=await mpClient.auth.getUser();
@@ -319,12 +319,15 @@ async function mpLoadJobs(){
  const {data:profile,error:pe}=await mpClient.from('profiles').select('role,is_active').eq('id',user.id).single();
  if(pe||!profile?.is_active){mpNotice('Akun tidak memiliki akses.');return}
  mpIsAdmin=profile.role==='admin';
- const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status,assistants').order('created_at',{ascending:true});
+ const {data,error}=await mpClient.from('technician_jobs').select('id,tech,unit,description,scheduled_time,status,assistants,work_date').order('created_at',{ascending:true});
  if(error){mpNotice('Database plotting belum siap: '+error.message+'. Jangan input pekerjaan dulu.');return}
  mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff: hanya melihat.');mpRenderJobs();
 }
+function mpTodayDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+function mpDateLabel(d){if(!d)return 'Tanggal belum tersedia';const [y,m,day]=d.split('-').map(Number);return new Intl.DateTimeFormat('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,day)))}
 function mpJobPeople(j){return [j.tech,...(j.assistants||[])].filter((n,i,a)=>n&&a.findIndex(x=>x.toLowerCase()===n.toLowerCase())===i)}
-function mpDisplayJobs(jobs){
+function mpDisplayJobs(jobs){const dates=[...new Set(jobs.map(j=>j.work_date||mpTodayDate()))].sort().reverse();return dates.map(date=>'<h2 style="margin:20px 0 10px;font-size:19px;border-bottom:1px solid #dbe3ee;padding-bottom:9px">'+mpEscape(mpDateLabel(date))+'</h2>'+mpDisplayDateJobs(jobs.filter(j=>(j.work_date||mpTodayDate())===date))).join('')}
+function mpDisplayDateJobs(jobs){
  const names=[...mpTechOrder,...new Set(jobs.flatMap(mpJobPeople).filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase())))];
  return names.map(name=>{
  const entries=jobs.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
@@ -372,12 +375,14 @@ const mpTechOrder=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry']
 function mpCopyWhatsApp(){
  if(!mpJobsReady){alert('Data plotting belum siap.');return}
  const fromPreview=mpWaParsed.length>0;
- const list=fromPreview?mpWaParsed.map(j=>({tech:j.tech,desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',assistants:j.assistants||[]})):mpJobs.slice();
+ const list=fromPreview?mpWaParsed.map(j=>({tech:j.tech,desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',assistants:j.assistants||[],work_date:j.work_date||mpWaDate})):mpJobs.slice();
  if(!list.length){alert('Belum ada pekerjaan untuk disalin.');return}
  const lines=['*PLOTTINGAN TEKNISI CIVIL*',''];
- const names=[...mpTechOrder,...[...new Set(list.flatMap(mpJobPeople))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
+ const dates=[...new Set(list.map(j=>j.work_date||mpTodayDate()))].sort().reverse();
+ for(const date of dates){lines.push('*'+mpDateLabel(date)+'*','');const dated=list.filter(j=>(j.work_date||mpTodayDate())===date);
+ const names=[...mpTechOrder,...[...new Set(dated.flatMap(mpJobPeople))].filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase()))];
  for(const name of names){
-  const jobs=list.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
+  const jobs=dated.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
   if(!jobs.length)continue;
   lines.push('*'+name+'*');
   for(const j of jobs){
@@ -388,6 +393,7 @@ function mpCopyWhatsApp(){
    else if(j.assistants&&j.assistants.length)lines.push('  Pendamping: '+j.assistants.join(', '));
   }
   lines.push('');
+ }
  }
  const result=lines.join('\n').trim();
  if(navigator.clipboard&&window.isSecureContext){
@@ -409,15 +415,17 @@ function mpAskJob(old){
  if(time.trim()&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.trim())){alert('Jam harus HH:MM');return null}
  let status=prompt('Status: On Progress / On Schedule / Done',old?.status||'On Progress');if(status===null)return null;
  if(!['On Progress','On Schedule','Done'].includes(status)){alert('Status tidak valid');return null}
+ let date=prompt('Tanggal plotting (YYYY-MM-DD)',old?.work_date||mpTodayDate());if(date===null)return null;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))){alert('Tanggal harus YYYY-MM-DD');return null}
  let assistantInput=prompt('Teknisi pendamping (opsional, pisahkan dengan koma)',(old?.assistants||[]).join(', '));if(assistantInput===null)return null;
  const assistants=[...new Set(assistantInput.split(',').map(x=>x.trim()).filter(x=>x&&x.toLowerCase()!==tech.trim().toLowerCase()))];
- return {tech:tech.trim(),description:desc.trim(),unit:unit.trim()||null,scheduled_time:time.trim()||null,status,assistants}
+ return {tech:tech.trim(),description:desc.trim(),unit:unit.trim()||null,scheduled_time:time.trim()||null,status,assistants,work_date:date}
 }
 function mpMayWrite(){if(!mpJobsReady){alert('Database belum siap.');return false}if(!mpIsAdmin){alert('Hanya admin yang dapat mengubah plotting.');return false}return true}
 async function mpAddJob(){if(!mpMayWrite())return;let d=mpAskJob();if(!d)return;const {error}=await mpClient.from('technician_jobs').insert(d);if(error)alert('Gagal simpan: '+error.message);else await mpLoadJobs()}
 async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j)return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
 async function mpDeleteJob(id){if(!mpMayWrite()||!confirm('Hapus pekerjaan ini secara permanen?'))return;const {error}=await mpClient.from('technician_jobs').delete().eq('id',id);if(error)alert('Gagal hapus: '+error.message);else await mpLoadJobs()}
-let mpWaParsed=[];
+let mpWaParsed=[];let mpWaDate=mpTodayDate();
 function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];mpWaEditing=-1;document.getElementById('mpWaPreview').replaceChildren()}
 function mpWaName(line){
  const raw=line.replace(/[*_]/g,'').replace(/:\s*$/,'').replace(/^(pak|mas|bapak)\s+/i,'').trim().toLowerCase();
@@ -426,7 +434,7 @@ function mpWaName(line){
 }
 function mpPreviewWhatsApp(){
  const input=document.getElementById('mpWaInput').value,preview=document.getElementById('mpWaPreview');
- mpWaParsed=[];let tech='',absence=[],ignored=0;
+ mpWaParsed=[];mpWaDate=mpTodayDate();let tech='',absence=[],ignored=0;
  for(const line of input.split(/\r?\n/)){
   const x=line.trim();if(!x)continue;
   if(!/^[-•]/.test(x)){
@@ -440,7 +448,7 @@ function mpPreviewWhatsApp(){
   let time=null;
   if(match){const value=match[1].padStart(2,'0')+':'+match[2];if(/^([01]\d|2[0-3]):[0-5]\d$/.test(value)){time=value;desc=desc.slice(0,match.index).trim()}}
   const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
-  mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants:[]});
+  mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants:[],work_date:mpWaDate});
  }
  mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
@@ -450,7 +458,7 @@ function mpRenderWaPreview(){
  const p=document.getElementById('mpWaPreview');
  const names=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry'];
  const entries=mpWaParsed.map((j,i)=>({j,i})).sort((a,b)=>names.indexOf(a.j.tech)-names.indexOf(b.j.tech));
- p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px"><div><b style="font-size:18px">Plotting Pekerjaan</b><div class="muted">Pratinjau sebelum disimpan</div></div><span class="pill">'+mpWaParsed.length+' pekerjaan</span></div>'+
+ p.innerHTML='<label style="display:block;margin:12px 0;font-weight:700">Tanggal plotting (untuk semua pekerjaan)<input type="date" value="'+mpEscape(mpWaDate)+'" onchange="mpWaDate=this.value;mpWaParsed.forEach(j=>j.work_date=mpWaDate);mpRenderWaPreview()" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #cbd5e1;border-radius:10px"></label><div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px"><div><b style="font-size:18px">Plotting Pekerjaan</b><div class="muted">Pratinjau sebelum disimpan</div></div><span class="pill">'+mpWaParsed.length+' pekerjaan</span></div>'+
  entries.map(({j,i})=>'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:8px 0">'+
  (mpWaEditing===i?
  '<b>Edit pekerjaan</b><label style="display:block;margin-top:10px">Teknisi utama<select id="mpWaTech" style="display:block;width:100%;padding:10px;margin:5px 0">'+names.map(n=>'<option value="'+mpEscape(n)+'" '+(n===j.tech?'selected':'')+'>'+mpEscape(n)+'</option>').join('')+'</select></label><div style="margin-top:10px"><b>Teknisi Pendamping (opsional)</b><div class="muted" style="font-size:12px">Bisa pilih lebih dari satu</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">'+names.filter(n=>n!==j.tech).map(n=>'<label style="display:inline-flex;align-items:center;gap:6px;padding:8px;border:1px solid #dbe3ee;border-radius:10px"><input type="checkbox" class="mpWaAssistant" value="'+mpEscape(n)+'" '+((j.assistants||[]).includes(n)?'checked':'')+'>'+mpEscape(n)+'</label>').join('')+'</div></div><label style="display:block;margin-top:10px">Deskripsi pekerjaan<textarea id="mpWaDesc" rows="3" style="display:block;width:100%;padding:10px;margin:5px 0;font:inherit">'+mpEscape(j.description)+'</textarea></label><label style="display:block;margin-top:10px">Jam mulai (opsional)<input id="mpWaTime" type="time" value="'+mpEscape(j.scheduled_time||'')+'" style="display:block;width:100%;padding:10px;margin:5px 0"></label><div style="display:flex;gap:8px;margin-top:12px"><button class="primary" style="min-height:48px;padding:10px 16px;font-size:16px;font-weight:700;flex:1;border-radius:12px" onclick="mpWaApply('+i+')">Simpan Perubahan</button><button onclick="mpWaEditing=-1;mpRenderWaPreview()">Batal</button></div>':
