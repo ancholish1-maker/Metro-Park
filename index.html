@@ -333,7 +333,7 @@ function mpDisplayJobs(jobs){
  const helping=j.tech.toLowerCase()!==name.toLowerCase();
  return '<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+
  (helping?'<p class="muted">Membantu '+mpEscape(j.tech)+'</p>':((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':''))+
- '<p class="muted">'+mpEscape(j.status)+'</p></div>';
+ '<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpIsAdmin?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpIsAdmin?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+'</div>';
  }).join('');
  }).join('');
 }
