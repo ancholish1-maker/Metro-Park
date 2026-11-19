@@ -96,6 +96,14 @@ html.mp-v2{--navy:#102c4c;--blue:#23639a;--bg:#eef3f9;--line:#dce5ef;--muted:#62
 #mpDesignSwitch{position:fixed;right:12px;top:78px;z-index:7;font-size:11px;min-height:30px;border:1px solid #bacde0;background:#fff;color:#173b62;border-radius:20px;padding:5px 11px;box-shadow:0 2px 8px #102b4e14}
 @media(max-width:760px){.mp-v2 main{padding-top:42px}.mp-v2 h1{font-size:24px}.mp-v2 .dash-stat{padding:14px}.mp-v2 .dash-stat-label{font-size:12px}.mp-v2 .dash-stat-value{font-size:29px}.mp-v2 .primary-stat .dash-stat-value{font-size:44px}.mp-v2 .mobile-nav{box-shadow:0 -4px 22px #102b4e0c;padding-top:8px}.mp-v2 .mobile-nav button{font-size:10px;display:flex;align-items:center;flex-direction:column;gap:4px;padding:6px 1px}.mp-v2 .mobile-nav button.active{color:#185d97;background:#e8f1fc;border-radius:10px;font-weight:700}.mp-v2 .mobile-nav .mp-v2-icon{height:21px;width:21px}#mpDesignSwitch{top:64px;right:12px}.mp-v2 #mpAiPanel{width:calc(100vw - 24px)!important}}
 @media(prefers-reduced-motion:no-preference){.mp-v2 .dash-stat,.mp-v2 .tower,.mp-v2 button{transition:background-color .15s,border-color .15s,box-shadow .15s}}
+</style><style id="mp-v2-nav-fix">
+@media(max-width:760px){
+html.mp-v2 .mobile-nav{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:0!important;padding:6px 3px calc(6px + env(safe-area-inset-bottom))!important;box-sizing:border-box;width:100%;left:0;right:0}
+html.mp-v2 .mobile-nav button{width:100%!important;min-width:0!important;margin:0!important;padding:5px 0!important;gap:4px!important;font-size:9px!important;line-height:1.2!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;overflow:hidden}
+html.mp-v2 .mobile-nav button span{font-size:9px!important;line-height:1.2!important;letter-spacing:-.25px!important;display:block!important;max-width:100%;white-space:nowrap!important}
+html.mp-v2 .mobile-nav button svg{width:21px!important;height:21px!important;flex-shrink:0}
+}
+@media(max-width:360px){html.mp-v2 .mobile-nav button span{font-size:8px!important}}
 </style></head>
 <body>
 <header><div class="brand">METRO PARK<small>FITTING OUT MONITORING</small></div><div class="mp-trial-label" style="font-size:12px;opacity:.85">TRIAL VERSION 1</div></header>
