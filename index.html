@@ -724,7 +724,7 @@ let mpWaParsed=[];let mpWaDate=mpTodayDate();
 function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];mpWaEditing=-1;document.getElementById('mpWaPreview').replaceChildren()}
 function mpWaName(line){
  const raw=line.replace(/[*_]/g,'').replace(/:\s*$/,'').replace(/^(pak|mas|bapak)\s+/i,'').trim().toLowerCase();
- const names={'fredy':'Fredy A.','fredy a.':'Fredy A.','adi':'Adi K.','adi k.':'Adi K.','sugi':'Sugiyanto','sugiyanto':'Sugiyanto','har':'Haryanto','haryanto':'Haryanto','maryoto':'Maryoto','matyoto':'Maryoto','ferry':'Ferry'};
+ const names={'fredy':'Fredy A.','fredy a.':'Fredy A.','adi':'Adi K.','adi k.':'Adi K.','sugi':'Sugiyanto','sugiyanto':'Sugiyanto','har':'Haryanto','haryanto':'Haryanto','maryoto':'Maryoto','matyoto':'Maryoto','ferry':'Ferry','feri':'Ferry'};
  return names[raw]||null;
 }
 function mpWaTechnicianNames(value){
@@ -735,9 +735,16 @@ function mpWaTechnicianNames(value){
 }
 function mpPreviewWhatsApp(){
  const input=document.getElementById('mpWaInput').value,preview=document.getElementById('mpWaPreview');
- mpWaParsed=[];mpWaDate=mpTodayDate();let tech='',absence=[],ignored=0;let mpWaHeadingAssistants=[];
+ mpWaParsed=[];mpWaAttendance={};mpWaDate=mpTodayDate();let tech='',absence=[],ignored=0;let mpWaHeadingAssistants=[];
  for(const line of input.split(/\r?\n/)){
   const x=line.trim();if(!x)continue;
+  const dateMatch=x.match(/\b(\d{1,2})\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+(\d{4})\b/i);
+  if(dateMatch){const month=['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'].indexOf(dateMatch[2].toLowerCase())+1;mpWaDate=dateMatch[3]+'-'+String(month).padStart(2,'0')+'-'+dateMatch[1].padStart(2,'0');continue}
+  const attLine=x.replace(/^[-•]\s*/,'').replace(/[*_]/g,'').trim();
+  const attNames=mpWaTechnicianNames(attLine);
+  const attText=attLine.replace(/^(?:(?:pak|mas)\s+)?(?:fredy(?:\s+a\.?)?|adi(?:\s+k\.?)?|sugi(?:yanto)?|har(?:yanto)?|maryoto|feri|ferry)\s*[:–-]?\s*/i,'');
+  const st=/^(?:i[ zj]*in\s+)?saki[t]?\b/i.test(attText)?'Sakit':/^(?:izin|ijin)\b/i.test(attText)?'Izin':/^cuti\b/i.test(attText)?'Cuti':/^(?:refreshment|iclc|training)\b/i.test(attText)?'Hadir':/^(?:eo|extra off)\b/i.test(attText)?'EO':/^libur\b/i.test(attText)?'Libur':null;
+  if(st&&(attNames.length||tech)){for(const n of (attNames.length?attNames:[tech,...mpWaHeadingAssistants]))mpWaAttendance[n]={status:st,note:attText};continue}
   if(!/^[-•]/.test(x)){
    const name=mpWaName(x);if(name){tech=name;mpWaHeadingAssistants=[];continue}
    const headingNames=mpWaTechnicianNames(x.replace(/[*_:]/g,' '));if(headingNames.length&&headingNames.length<=3&&x.replace(/[*_:]/g,' ').trim().split(/\s+/).length<=6){tech=headingNames[0];mpWaHeadingAssistants=headingNames.slice(1);continue}
@@ -754,7 +761,7 @@ function mpPreviewWhatsApp(){
   const assistants=[...new Set([...mpWaHeadingAssistants,...named])].filter(n=>n!==tech);
   mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants,work_date:mpWaDate});
  }
- mpWaParsed=mpMergeSharedWhatsApp(mpWaParsed);mpWaMeta={absence,ignored};mpRenderWaPreview();
+ mpWaParsed.forEach(j=>j.work_date=mpWaDate);mpWaParsed=mpMergeSharedWhatsApp(mpWaParsed);mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
 
 function mpSharedWorkKey(desc){
@@ -775,6 +782,8 @@ function mpMergeSharedWhatsApp(rows){
  }
  return result;
 }
+let mpWaAttendance={};
+function mpWaAttendanceRows(){const day=new Date(mpWaDate+'T12:00:00').getDay();return mpAttPeople.map(person=>({work_date:mpWaDate,person,...(mpWaAttendance[person]||(mpWaParsed.some(j=>[j.tech,...(j.assistants||[])].includes(person))?{status:'Hadir',note:''}:{status:day===0?'Libur':day===6?'EO':'Belum terverifikasi',note:''}))}))}
 let mpWaMeta={absence:[],ignored:0},mpWaEditing=-1;
 function mpRenderWaPreview(){
  const p=document.getElementById('mpWaPreview');
@@ -788,7 +797,7 @@ function mpRenderWaPreview(){
  (!entries.length?'<p class="muted">Belum ada pekerjaan.</p>':'')+
  (mpWaMeta.absence.length?'<p class="muted">Catatan absensi (belum disimpan): '+mpEscape(mpWaMeta.absence.join('; '))+'</p>':'')+
  (mpWaMeta.ignored?'<p class="muted">'+mpWaMeta.ignored+' baris lain dilewati (termasuk tanggal/judul).</p>':'')+
- (entries.length?'<button class="primary" style="width:100%;min-height:50px;margin-top:14px;padding:12px 16px;font-size:16px;font-weight:700;border-radius:14px" onclick="mpSaveWhatsApp()">Simpan '+entries.length+' Pekerjaan</button>':'')+
+ '<h3>Pratinjau Kehadiran</h3>'+mpWaAttendanceRows().map(a=>'<div style="display:flex;justify-content:space-between;gap:12px;margin:8px 0"><span>'+mpEscape(a.person)+'</span><b>'+mpEscape(a.status)+'</b></div>').join('')+'<p class="muted">Kehadiran yang sudah tersimpan tidak ditimpa.</p><button class="primary" style="width:100%;min-height:50px" onclick="mpSaveWhatsApp()">Simpan Pekerjaan & Kehadiran</button>'+
  '<button style="display:block;width:100%;min-height:48px;margin-top:10px;padding:10px 16px;border-radius:12px;font-size:16px" onclick="mpCopyWhatsApp()">Salin ke WhatsApp</button>';
 }
 function mpWaSetStatus(i,status){if(!['On Schedule','On Progress','Done'].includes(status))return;mpWaParsed[i].status=status}
@@ -802,12 +811,18 @@ function mpWaApply(i){
  mpWaEditing=-1;mpRenderWaPreview();
 }
 
+let mpWaSaving=false;
 async function mpSaveWhatsApp(){
- if(!mpMayWrite()||!mpWaParsed.length)return;
- if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan ke database?'))return;
- const {error}=await mpClient.from('technician_jobs').insert(mpWaParsed);
- if(error){alert('Gagal impor: '+error.message);return}
- const count=mpWaParsed.length;mpClearWhatsApp();await mpLoadJobs();alert(count+' pekerjaan berhasil disimpan.');
+ if(!mpMayWrite()||mpWaSaving||!mpWaDate)return;
+ if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan dan kehadiran untuk '+mpWaDate+'?'))return;
+ mpWaSaving=true;
+ try{
+ const rows=mpWaAttendanceRows();
+ if(mpWaParsed.length){const {error}=await mpClient.from('technician_jobs').insert(mpWaParsed);if(error){alert('Gagal impor: '+error.message);return}mpWaParsed=[];mpWaAttendance=Object.fromEntries(rows.map(x=>[x.person,{status:x.status,note:x.note}]));}
+ const {error}=await mpClient.from('personnel_attendance').upsert(rows,{onConflict:'work_date,person',ignoreDuplicates:true});
+ if(error){mpRenderWaPreview();alert('Pekerjaan sudah diproses, kehadiran gagal: '+error.message+'. Coba simpan kehadiran kembali.');return}
+ mpClearWhatsApp();await mpLoadJobs();document.getElementById('mpAttDate').value=rows[0].work_date;await mpAttendanceLoad();alert('Pekerjaan dan kehadiran berhasil diproses.');
+ }finally{mpWaSaving=false}
 }
 function mpPasteJobs(){document.getElementById('mpWaInput').focus()}
 
