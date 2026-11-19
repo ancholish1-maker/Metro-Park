@@ -387,7 +387,7 @@ async function mpLoadJobs(){
  mpIsAdmin=profile.role==='admin';
  const {data,error}=await mpClient.from('technician_jobs').select('id,wo_group_id,tech,unit,description,scheduled_time,status,assistants,work_date,confirmation_result,confirmed_at,approval_status').order('created_at',{ascending:true});
  if(error){mpNotice('Database plotting belum siap: '+error.message+'. Jangan input pekerjaan dulu.');return}
- mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff FO: plotting dan pengajuan selesai.');mpRenderJobs();
+ try{await mpLoadUnitMaster()}catch(e){mpNotice('Master unit gagal dimuat: '+e.message);return}mpJobs=(data||[]).map(mpMapJob);mpJobsReady=true;mpNotice(mpIsAdmin?'Data tersimpan di Supabase.':'Mode Staff FO: plotting dan pengajuan selesai.');mpRenderJobs();
 }
 function mpTodayDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function mpDateLabel(d){if(!d)return 'Tanggal belum tersedia';const [y,m,day]=d.split('-').map(Number);return new Intl.DateTimeFormat('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,day)))}
@@ -414,12 +414,16 @@ function mpRenderUnitHistory(){
  const q=(document.getElementById('mpUnitHistorySearch')?.value||'').trim().toUpperCase().replace(/\s+/g,'');
  if(!q){box.innerHTML='';return}
  if(!mpJobsReady){box.textContent='Data pekerjaan belum siap.';return}
- const matches=mpJobs.filter(j=>(j.unit||'').toUpperCase().includes(q)||(j.desc||'').toUpperCase().includes(q));
+ const matches=mpJobs.filter(j=>mpUnitMatches([j.unit,j.desc].join(' ')).some(id=>id===mpNormalizeUnit(q)));
  const dates=[...new Set(matches.map(j=>j.work_date||mpTodayDate()))].sort().reverse();
  box.innerHTML='<div style="padding:12px;border:1px solid #dbe3ee;border-radius:12px;background:#f8fafc"><b>Riwayat unit: '+mpEscape(q)+'</b><p class="muted">'+matches.length+' pekerjaan ditemukan (aktif dan selesai)</p>'+
  (matches.length?dates.map(date=>'<h3 style="margin:16px 0 8px;font-size:16px">'+mpEscape(mpDateLabel(date))+'</h3>'+matches.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<p style="margin:5px 0">'+(j.status==='Done'?'🟢':j.status==='On Progress'?'🔴':'⚪')+' '+mpEscape(j.status)+'</p>'+mpActivityButton(j)+'</div>').join('')).join(''):'<p class="muted">Belum ada riwayat pekerjaan untuk unit ini.</p>')+'</div>';
 }
-function mpHasUnitId(j){return /\b(?:MA|MI)\s*\/\s*(?:UG|LG|B[12]|\d{1,2})(?:\s*\/\s*(?:[A-Z]{1,3}\d*|\d{1,2}[A-Z]?))?\b/i.test([j.unit,j.desc].join(' '))}
+function mpNormalizeUnit(v){return String(v||'').trim().toUpperCase().replace(/\s*\/\s*/g,'/').replace(/^(MA|MI)\/0+(\d+)\//,'$1/$2/')}
+function mpUnitMatches(v){return [...String(v||'').matchAll(/\b(?:MA|MI)\s*\/\s*(?:UG|LG|B[12]|\d{1,2})\s*\/\s*(?:[A-Z]{1,3}\d*|\d{1,2}[A-Z]?)\b/gi)].map(m=>mpNormalizeUnit(m[0]))}
+function mpHasUnitId(j){return mpUnitMatches([j.unit,j.desc].join(' ')).some(id=>(window.mpAllUnitIds||[]).includes(id))}
+async function mpLoadUnitMaster(){if(window.mpAllUnitIds)return;const ids=[];for(let offset=0;;offset+=500){const {data,error}=await mpClient.from('units').select('id').order('id').range(offset,offset+499);if(error)throw error;ids.push(...data.map(x=>x.id));if(data.length<500)break;}window.mpAllUnitIds=ids}
+
 async function mpConfirmJob(id,result){
  if(!mpMayWrite())return;
  const j=mpJobs.find(x=>String(x.id)===String(id));
@@ -622,7 +626,7 @@ function mpRenderEngineeringGroups(){
  if(!mpJobsReady){el.textContent='Menunggu data pekerjaan';return}
  const jobs=mpJobs.filter(j=>j.work_date===mpTodayDate());
  const isCasual=n=>/\b(?:maryoto|matyoto|feri|ferry)\b/i.test(n||'');
- const isUnit=j=>/\b(?:MA|MI)\s*\/\s*(?:UG|LG|B[12]|\d{1,2})\s*\/\s*(?:[A-Z]{1,3}\d*|\d{1,2}[A-Z]?)\b/i.test([j.unit,j.desc].join(' '));
+ const isUnit=mpHasUnitId;
  const groups=[['Teknisi Sipil',jobs.filter(j=>[j.tech,...(j.assistants||[])].some(n=>!isCasual(n)))],['Casual',jobs.filter(j=>[j.tech,...(j.assistants||[])].some(isCasual))]];
  el.innerHTML=groups.map(([name,rows])=>'<div class="panel" style="margin-top:12px"><h3>'+name+'</h3>'+[true,false].map(unit=>'<p class="muted">'+(unit?'Dengan ID Unit':'Tanpa ID Unit')+'</p><div class="mp-eng-grid">'+['On Schedule','On Progress','Done'].map((st,i)=>'<button class="dash-stat" onclick="showPage(\'plotting\')" style="text-align:left"><div class="dash-stat-label">'+st+'</div><div class="dash-stat-value" style="color:'+['#64748b','#d97706','#15803d'][i]+'">'+mpWoCount(rows.filter(j=>isUnit(j)===unit&&j.status===st))+'</div></button>').join('')+'</div>').join('')+'</div>').join('')+'<p class="muted">Total WO unik hari ini: '+mpWoCount(jobs)+' · Pekerjaan bersama dapat muncul di kedua kategori.</p>';
 }
@@ -761,7 +765,7 @@ function mpPreviewWhatsApp(){
   const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
   const named=mpWaTechnicianNames(desc);
   const assistants=[...new Set([...mpWaHeadingAssistants,...named])].filter(n=>n!==tech);
-  mpWaParsed.push({tech,description:desc,unit:u?u[0].toUpperCase():null,scheduled_time:time,status:'On Progress',assistants,work_date:mpWaDate});
+  mpWaParsed.push({tech,description:desc,unit:u?mpNormalizeUnit(u[0]):null,scheduled_time:time,status:'On Progress',assistants,work_date:mpWaDate});
  }
  mpWaParsed.forEach(j=>j.work_date=mpWaDate);mpWaParsed=mpMergeSharedWhatsApp(mpWaParsed);mpWaMeta={absence,ignored};mpRenderWaPreview();
 }
@@ -836,14 +840,14 @@ function mpPasteJobs(){document.getElementById('mpWaInput').focus()}
 
 const mpStatusLabels={active:'Sedang Renovasi',expired:'Habis Masa Berlaku',bapfo:'BAPFO, Deposit Belum Refund',refund:'Deposit Sudah Refund',cancel:'Batal Renovasi'};
 async function mpSearchUnitPreview(){
- const q=document.getElementById('mp-unit-query').value.trim().toUpperCase();
+ const q=mpNormalizeUnit(document.getElementById('mp-unit-query').value);
  const box=document.getElementById('mp-unit-search-result');box.replaceChildren();
  if(!q)return;
  if(!window.mpAllUnitIds){
   box.textContent='Memuat master unit...';
   if(!window.mpUnitLoadPromise)window.mpUnitLoadPromise=(async()=>{const ids=[];for(let offset=0;offset<2000;offset+=500){const {data,error}=await mpClient.from('units').select('id').order('id').range(offset,offset+499);if(error)throw error;ids.push(...(data||[]).map(x=>x.id));if((data||[]).length<500)break;}window.mpAllUnitIds=ids;})().finally(()=>{window.mpUnitLoadPromise=null});
   try{await window.mpUnitLoadPromise;}catch(err){box.textContent='Gagal memuat master unit: '+err.message;return;}
-  if(document.getElementById('mp-unit-query').value.trim().toUpperCase()!==q)return;
+  if(mpNormalizeUnit(document.getElementById('mp-unit-query').value)!==q)return;
  }
  box.replaceChildren();
  const matches=window.mpAllUnitIds.filter(id=>id.includes(q)).slice(0,12);
@@ -851,7 +855,7 @@ async function mpSearchUnitPreview(){
  for(const id of matches){const btn=document.createElement('button');btn.type='button';btn.className='mp-search-suggestion';btn.textContent=id;btn.onclick=()=>{document.getElementById('mp-unit-query').value=id;mpSearchUnit()};box.appendChild(btn);}
 }
 async function mpSearchUnit(){
- const q=document.getElementById('mp-unit-query').value.trim().toUpperCase().replace(/\\s+/g,'');
+ const q=mpNormalizeUnit(document.getElementById('mp-unit-query').value);
  const box=document.getElementById('mp-unit-search-result');
  if(!q){box.textContent='Masukkan ID unit dahulu.';return;}
  if(!window.mpAllUnitIds){await mpSearchUnitPreview();if(!window.mpAllUnitIds)return;}
