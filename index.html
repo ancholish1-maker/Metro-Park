@@ -642,30 +642,32 @@ const mpAttPeople=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry']
 let mpAttLoaded='';
 async function mpAttendanceLoad(){const d=document.getElementById('mpAttDate'),box=document.getElementById('mpAttRows'),info=document.getElementById('mpAttInfo');if(!d||!mpJobsReady)return;d.value=d.value||mpTodayDate();const date=d.value;mpAttLoaded='';box.replaceChildren();info.textContent='Memuat...';const {data,error}=await mpClient.from('personnel_attendance').select('*').eq('work_date',date);if(d.value!==date)return;if(error){info.textContent=error.message;return}mpAttLoaded=date;for(const [i,n] of mpAttPeople.entries()){const row=document.createElement('div');row.style='display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0';const label=document.createElement('label');label.textContent=n;label.htmlFor='mpAtt'+i;label.style='flex:1;min-width:90px';const sel=document.createElement('select');sel.id='mpAtt'+i;sel.style='width:145px;max-width:55%;min-height:44px';for(const st of mpAttStatuses)sel.add(new Option(st,st));const old=data.find(x=>x.person===n);const present=mpJobs.some(j=>j.work_date===date&&[j.tech,...(j.assistants||[])].includes(n));sel.value=old?.status||(present?'Hadir':'Belum terverifikasi');sel.dataset.note=old?.note||'';row.append(label,sel);box.append(row)}info.textContent='Status tersimpan dapat diedit. Data kosong perlu diverifikasi.'}
 async function mpAttendanceSave(){const date=document.getElementById('mpAttDate').value,info=document.getElementById('mpAttInfo');if(!mpMayWrite()||mpAttLoaded!==date)return;const rows=mpAttPeople.map((person,i)=>{const el=document.getElementById('mpAtt'+i);return {work_date:date,person,status:el.value,note:el.dataset.note}});const {error}=await mpClient.from('personnel_attendance').upsert(rows,{onConflict:'work_date,person'});info.textContent=error?'Gagal: '+error.message:'Kehadiran tersimpan.'}
+function mpLatestGroups(rows){const groups=new Map();for(const j of rows){const k=j.wo_group_id||j.id,old=groups.get(k);if(!old||String(j.work_date||'')>String(old.work_date||'')||(j.work_date===old.work_date&&j.status!=='Done'&&old.status==='Done'))groups.set(k,j)}return [...groups.values()]}
+function mpGroupMatchesQuery(j,q,date=''){return mpJobs.some(x=>(x.wo_group_id||x.id)===(j.wo_group_id||j.id)&&mpPlotGroupMatches(x)&&(!date||x.work_date===date)&&[x.tech,...(x.assistants||[]),x.unit,x.desc].join(' ').toLowerCase().includes(q))}
 function mpRenderJobs(){mpRenderEngineering();mpCalendarRender();if(mpJobsReady&&!document.getElementById('mpAttDate')?.value)mpAttendanceLoad();
  const box=document.getElementById('mpJobList');if(!box)return;
  if(!mpJobsReady){box.textContent='Belum terhubung ke database.';return}
  let q=(document.getElementById('mpJobSearch')?.value||'').toLowerCase(),f=document.getElementById('mpJobFilter')?.value||'';
- const searchBox=document.getElementById('mpSearchResults');
+ const latest=mpLatestGroups(mpJobs);const searchBox=document.getElementById('mpSearchResults');
  if(searchBox){
   if(q.trim()){
-   const matches=mpJobs.filter(j=>mpPlotGroupMatches(j)&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q.trim()));
+   const matches=latest.filter(j=>mpGroupMatchesQuery(j,q.trim()));
    searchBox.style.display='block';
    searchBox.innerHTML='<div style="border:1px solid #dbe3ee;border-radius:12px;padding:12px;background:#f8fafc"><b>Hasil pencarian: '+matches.length+' pekerjaan</b>'+
     (matches.length?matches.map(j=>'<div style="padding:10px 0;border-top:1px solid #dbe3ee;margin-top:8px"><b>'+mpEscape(j.tech)+'</b><div>'+mpEscape(j.desc)+'</div><div class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+(j.status==='Done'?'🟢':j.status==='On Progress'?'🔴':'⚪')+' '+mpEscape(j.status)+'</div></div>').join(''):'<p class="muted" style="margin:8px 0 0">Tidak ditemukan di pekerjaan tersimpan. Pastikan pekerjaan sudah disimpan ke database.</p>')+'</div>';
   }else{searchBox.style.display='none';searchBox.replaceChildren()}
  }
  const selectedDate=document.getElementById('mpJobDate')?.value||'';
- let rows=mpJobs.filter(j=>mpPlotGroupMatches(j)&&j.status!=='Done'&&(!f||j.status===f)&&(!selectedDate||(j.work_date||mpTodayDate())===selectedDate)&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q));
+ let rows=latest.filter(j=>j.status!=='Done'&&(!f||j.status===f)&&mpGroupMatchesQuery(j,q,selectedDate));
  rows.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
  box.innerHTML=rows.length?mpDisplayJobs(rows):'<p class="muted">Belum ada pekerjaan.</p>';
 
  mpRenderUnitHistory();
  mpRenderMonitoring();
  const history=document.getElementById('mpJobHistory'),count=document.getElementById('mpJobHistoryCount');
- const done=mpJobs.filter(j=>mpPlotGroupMatches(j)&&(!selectedDate||j.work_date===selectedDate)&&j.status==='Done'&&[j.tech,...(j.assistants||[]),j.unit,j.desc].join(' ').toLowerCase().includes(q));
+ const done=latest.filter(j=>j.status==='Done'&&mpGroupMatchesQuery(j,q,selectedDate));
  if(count)count.textContent=mpWoCount(done);
- if(history)history.innerHTML=done.length?[...new Set(done.map(j=>j.work_date||mpTodayDate()))].sort().reverse().map(date=>'<h3 style="margin:18px 0 10px;font-size:17px;border-bottom:1px solid #dbe3ee;padding-bottom:8px">'+mpEscape(mpDateLabel(date))+'</h3>'+done.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<select aria-label="Status pekerjaan selesai" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit"><option value="On Schedule">⚪ On Schedule</option><option value="On Progress">🔴 On Progress</option><option value="Done" selected>🟢 Done</option></select></div>').join('')).join(''):'<p class="muted">Belum ada pekerjaan selesai.</p>';
+ if(history)history.innerHTML=done.length?[...new Set(done.map(j=>j.work_date||mpTodayDate()))].sort().reverse().map(date=>'<h3 style="margin:18px 0 10px;font-size:17px;border-bottom:1px solid #dbe3ee;padding-bottom:8px">'+mpEscape(mpDateLabel(date))+'</h3>'+done.filter(j=>(j.work_date||mpTodayDate())===date).map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.tech)+' · '+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':'')+'<select aria-label="Status pekerjaan selesai" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit"><option value="On Schedule">⚪ On Schedule</option><option value="On Progress">🔴 On Progress</option><option value="Done" selected>🟢 Done</option></select>'+mpWoHistory(j)+'</div>').join('')).join(''):'<p class="muted">Belum ada pekerjaan selesai.</p>';
 
 }
 async function mpSetJobStatus(id,status,el){
