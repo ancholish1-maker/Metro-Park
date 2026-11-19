@@ -833,6 +833,9 @@ function mpWaApply(i){
  mpWaEditing=-1;mpRenderWaPreview();
 }
 
+function mpImportKey(j){const u=mpWoKey(j.unit);let d=mpWoKey(j.description||j.desc);if(u)d=d.replaceAll(u,'').replace(/\bunit\s*$/,'').trim();return u+'|'+d}
+function mpImportPeople(j){return [...new Set([j.tech,...(j.assistants||[])])]}
+function mpImportPlan(parsed,existing){const fresh=[],updates=new Map();for(const j of parsed){const candidates=[...existing,...fresh].filter(x=>x.work_date===j.work_date&&(j.wo_group_id&&x.wo_group_id===j.wo_group_id||mpImportKey(x)===mpImportKey(j)&&mpImportPeople(x).some(p=>mpImportPeople(j).includes(p))));if(candidates.length>1)throw Error('WO ambigu: '+j.description);const x=candidates[0];if(!x){fresh.push({...j});continue}const people=[...new Set([...mpImportPeople(x),...mpImportPeople(j),...(updates.get(x.id)||[])])].filter(p=>p!==x.tech);if(fresh.includes(x))x.assistants=people;else if(people.some(p=>!(x.assistants||[]).includes(p)))updates.set(x.id,people);}return {fresh,updates}}
 let mpWaSaving=false;
 async function mpSaveWhatsApp(){
  if(!mpMayWrite()||mpWaSaving||!mpWaDate)return;
@@ -840,11 +843,11 @@ async function mpSaveWhatsApp(){
  mpWaSaving=true;
  try{
  const rows=mpWaAttendanceRows();
- if(mpWaParsed.length){const {error}=await mpClient.from('technician_jobs').insert(mpWaParsed);if(error){alert('Gagal impor: '+error.message);return}mpWaParsed=[];mpWaAttendance=Object.fromEntries(rows.map(x=>[x.person,{status:x.status,note:x.note}]));}
+ if(mpWaParsed.length){await mpLoadJobs();if(!mpJobsReady)throw Error('Data WO belum berhasil dimuat');const plan=mpImportPlan(mpWaParsed,mpJobs);for(const [id,assistants] of plan.updates){const {error}=await mpClient.from('technician_jobs').update({assistants}).eq('id',id);if(error)throw error}if(plan.fresh.length){const {error}=await mpClient.from('technician_jobs').insert(plan.fresh);if(error)throw error}mpWaParsed=[];mpWaAttendance=Object.fromEntries(rows.map(x=>[x.person,{status:x.status,note:x.note}]));}
  const {error}=await mpClient.from('personnel_attendance').upsert(rows,{onConflict:'work_date,person',ignoreDuplicates:true});
  if(error){mpRenderWaPreview();alert('Pekerjaan sudah diproses, kehadiran gagal: '+error.message+'. Coba simpan kehadiran kembali.');return}
  mpClearWhatsApp();await mpLoadJobs();mpCalPick(rows[0].work_date);alert('Pekerjaan dan kehadiran berhasil diproses.');
- }finally{mpWaSaving=false}
+ }catch(err){alert('Impor belum selesai: '+err.message+'. Muat ulang data sebelum mencoba lagi.')}finally{mpWaSaving=false}
 }
 function mpPasteJobs(){document.getElementById('mpWaInput').focus()}
 
