@@ -803,6 +803,7 @@ let mpWaAttendance={};
 function mpWaAttendanceRows(){const day=new Date(mpWaDate+'T12:00:00').getDay();return mpAttPeople.map(person=>({work_date:mpWaDate,person,...(mpWaAttendance[person]||(mpWaParsed.some(j=>[j.tech,...(j.assistants||[])].includes(person))?{status:'Hadir',note:''}:{status:day===0?'Libur':day===6?'EO':'Belum terverifikasi',note:''}))}))}
 let mpWaMeta={absence:[],ignored:0},mpWaEditing=-1;
 function mpRenderWaPreview(){
+ mpWaParsed.forEach(mpWaAutoChoice);
  const p=document.getElementById('mpWaPreview');
  const names=['Fredy A.','Adi K.','Sugiyanto','Haryanto','Maryoto','Ferry'];
  const entries=mpWaParsed.map((j,i)=>({j,i})).sort((a,b)=>names.indexOf(a.j.tech)-names.indexOf(b.j.tech));
@@ -821,8 +822,10 @@ function mpRenderWaPreview(){
 function mpWoKey(v){return String(v||'').toLowerCase().replace(/\b(ma|mi)\/0+(\d+)\//g,'$1/$2/').replace(/\(\s*bareng[^)]*\)/g,'').replace(/\s+/g,' ').trim()}
 function mpWoSimilarity(a,b){const tokens=v=>new Set(mpWoKey(v).replace(/\b(?:ma|mi)\/[a-z0-9/]+/g,'').replace(/\b(?:perbaikan|perapihan|pekerjaan|lanjut|progress|area|dan|di|yang)\b/g,' ').match(/[a-z0-9]+/g)||[]);const x=tokens(a),y=tokens(b),common=[...x].filter(t=>y.has(t)).length;return common>=2?common/Math.max(x.size,y.size):0}
 function mpWaWoCandidates(j){if(!mpWaDate)return [];const prev=new Date(mpWaDate+'T12:00:00Z');prev.setUTCDate(prev.getUTCDate()-1);if(prev.getUTCDay()===0)prev.setUTCDate(prev.getUTCDate()-1);const date=prev.toISOString().slice(0,10);return [...new Map(mpJobs.filter(x=>x.work_date===date&&mpWoKey(x.unit)===mpWoKey(j.unit)&&(mpImportKey(x)===mpImportKey(j)||mpWoSimilarity(x.desc,j.description)>=0.65)).map(x=>[x.wo_group_id,x])).values()]}
-function mpWaWoChoice(j,i){const candidates=mpWaWoCandidates(j);if(!candidates.length)return '';return '<label style="display:block;margin-top:8px">Kemungkinan WO lanjutan<select style="display:block;width:100%" onchange="mpWaChooseWo('+i+',this.value)"><option value="">WO baru / pengerjaan ulang</option>'+candidates.map(x=>'<option value="'+mpEscape(x.wo_group_id)+'" '+(j.wo_group_id===x.wo_group_id?'selected':'')+'>Lanjut / jadwal ulang '+mpEscape(x.work_date)+' · '+mpEscape(x.tech)+' · '+mpEscape(x.status)+' · '+mpEscape(x.desc)+'</option>').join('')+'</select></label>'}
-function mpWaChooseWo(i,v){if(v)mpWaParsed[i].wo_group_id=v;else delete mpWaParsed[i].wo_group_id}
+const mpWaManualChoices=new WeakMap();
+function mpWaAutoChoice(j){const candidates=mpWaWoCandidates(j),exact=candidates.filter(x=>mpImportKey(x)===mpImportKey(j));if(mpWaManualChoices.get(j)===mpWaDate)return;if(exact.length===1&&candidates.length===1&&exact[0].status!=='Done')j.wo_group_id=exact[0].wo_group_id;else delete j.wo_group_id}
+function mpWaWoChoice(j,i){const candidates=mpWaWoCandidates(j);if(!candidates.length)return '';const auto=mpWaManualChoices.get(j)!==mpWaDate&&!!j.wo_group_id;return '<p class="muted">'+(auto?'Kecocokan tepat — dipilih otomatis': 'Periksa dan konfirmasi pilihan WO')+'</p><label style="display:block;margin-top:8px">Kemungkinan WO lanjutan<select style="display:block;width:100%" onchange="mpWaChooseWo('+i+',this.value)"><option value="review" '+(!j.wo_group_id&&mpWaManualChoices.get(j)!==mpWaDate?'selected':'')+'>Pilih tindakan terlebih dahulu</option><option value="" '+(!j.wo_group_id&&mpWaManualChoices.get(j)===mpWaDate?'selected':'')+'>WO baru / pengerjaan ulang</option>'+candidates.map(x=>'<option value="'+mpEscape(x.wo_group_id)+'" '+(j.wo_group_id===x.wo_group_id?'selected':'')+'>Lanjut / jadwal ulang '+mpEscape(x.work_date)+' · '+mpEscape(x.tech)+' · '+mpEscape(x.status)+' · '+mpEscape(x.desc)+'</option>').join('')+'</select></label>'}
+function mpWaChooseWo(i,v){const j=mpWaParsed[i];if(v==='review'){mpWaManualChoices.delete(j);delete j.wo_group_id;return}mpWaManualChoices.set(j,mpWaDate);if(v)j.wo_group_id=v;else delete j.wo_group_id}
 function mpWaSetStatus(i,status){if(!['On Schedule','On Progress','Done'].includes(status))return;mpWaParsed[i].status=status}
 function mpWaDelete(i){mpWaParsed.splice(i,1);mpWaEditing=-1;mpRenderWaPreview()}
 function mpWaApply(i){
@@ -831,7 +834,7 @@ function mpWaApply(i){
  const u=desc.match(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{2,4}\b/i);
  const assistants=[...document.querySelectorAll('.mpWaAssistant:checked')].map(el=>el.value).filter(n=>n!==tech);
  Object.assign(mpWaParsed[i],{tech,description:desc,scheduled_time:time||null,unit:u?u[0].toUpperCase():null,assistants});
- mpWaEditing=-1;mpRenderWaPreview();
+ mpWaManualChoices.delete(mpWaParsed[i]);mpWaEditing=-1;mpRenderWaPreview();
 }
 
 function mpImportKey(j){const u=mpWoKey(j.unit);let d=mpWoKey(j.description||j.desc);if(u)d=d.replaceAll(u,'').replace(/\bunit\s*$/,'').trim();return u+'|'+d}
@@ -842,6 +845,7 @@ function mpImportPlan(parsed,existing){const fresh=[],updates=new Map();for(cons
 let mpWaSaving=false;
 async function mpSaveWhatsApp(){
  if(!mpMayWrite()||mpWaSaving||!mpWaDate)return;
+ if(mpWaParsed.some(j=>mpWaWoCandidates(j).length&&!j.wo_group_id&&mpWaManualChoices.get(j)!==mpWaDate)){alert('Konfirmasi kandidat WO lanjutan terlebih dahulu.');return}
  if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan dan kehadiran untuk '+mpWaDate+'?'))return;
  mpWaSaving=true;
  try{
