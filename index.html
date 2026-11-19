@@ -400,7 +400,7 @@ function mpDisplayJobs(jobs){const dates=[...new Set(jobs.map(j=>j.work_date||mp
 function mpDisplayDateJobs(jobs){
  const names=[...mpTechOrder,...new Set(jobs.flatMap(mpJobPeople).filter(n=>!mpTechOrder.some(x=>x.toLowerCase()===n.toLowerCase())))];
  return names.map(name=>{
- const entries=jobs.filter(j=>mpJobPeople(j).some(n=>n.toLowerCase()===name.toLowerCase()));
+ const entries=jobs.filter(j=>j.tech.toLowerCase()===name.toLowerCase());
  if(!entries.length)return '';
  return '<h3 style="margin:14px 0 6px;font-size:16px">'+mpEscape(name)+'</h3>'+entries.map(j=>{
  const helping=j.tech.toLowerCase()!==name.toLowerCase();
