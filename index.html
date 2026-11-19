@@ -812,11 +812,12 @@ function mpAiDragSetup(b,p){
  try{saved=JSON.parse(localStorage.getItem('mpAiBubblePosition')||'null')}catch{}
  function bounds(){const nav=document.querySelector('.mobile-nav'),head=document.querySelector('header'),mobile=matchMedia('(max-width:760px)').matches;return {left:12,right:Math.max(12,innerWidth-b.offsetWidth-12),top:(head?Math.max(0,head.getBoundingClientRect().bottom):0)+12,bottom:Math.max(12,(mobile&&nav?nav.getBoundingClientRect().top:innerHeight)-b.offsetHeight-12)}}
  function place(x,y){const q=bounds();b.style.left=Math.max(q.left,Math.min(q.right,x))+'px';b.style.top=Math.max(q.top,Math.min(Math.max(q.top,q.bottom),y))+'px';b.style.right='auto';b.style.bottom='auto'}
- function restore(){const q=bounds();place(saved&&Number.isFinite(saved.x)?saved.x:q.right,saved&&Number.isFinite(saved.y)?saved.y:q.bottom)}
+ function snap(x,y,animate=false){const q=bounds(),side=x<(q.left+q.right)/2?'left':'right';b.style.transition=animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches?'left 180ms ease-out, top 180ms ease-out':'none';place(q[side],y);saved={side,x:q[side],y:parseFloat(b.style.top)};try{localStorage.setItem('mpAiBubblePosition',JSON.stringify(saved))}catch{}}
+ function restore(){const q=bounds();snap(saved?.side==='left'?q.left:saved?.side==='right'?q.right:saved&&Number.isFinite(saved.x)?saved.x:q.right,saved&&Number.isFinite(saved.y)?saved.y:q.bottom)}
  b.style.touchAction='none';b.style.userSelect='none';b.style.webkitUserSelect='none';b.style.cursor='grab';
- b.addEventListener('pointerdown',e=>{if(!e.isPrimary||e.button!==0)return;const rect=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top,moved:false};b.dataset.dragged='0';b.setPointerCapture(e.pointerId)});
+ b.addEventListener('pointerdown',e=>{if(!e.isPrimary||e.button!==0)return;const rect=b.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top,moved:false};b.style.transition='none';b.dataset.dragged='0';b.setPointerCapture(e.pointerId)});
  b.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>6)drag.moved=true;if(drag.moved){b.dataset.dragged='1';place(drag.left+dx,drag.top+dy)}});
- function end(e){if(!drag||drag.id!==e.pointerId)return;if(drag.moved){saved={x:b.offsetLeft,y:b.offsetTop};try{localStorage.setItem('mpAiBubblePosition',JSON.stringify(saved))}catch{}setTimeout(()=>{b.dataset.dragged='0'},350)}drag=null}
+ function end(e){if(!drag||drag.id!==e.pointerId)return;if(drag.moved){snap(parseFloat(b.style.left),parseFloat(b.style.top),true);setTimeout(()=>{b.dataset.dragged='0'},350)}drag=null}
  b.addEventListener('pointerup',end);b.addEventListener('pointercancel',end);
  addEventListener('resize',restore);addEventListener('orientationchange',()=>setTimeout(restore,150));requestAnimationFrame(restore);
 }
