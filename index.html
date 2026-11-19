@@ -837,7 +837,7 @@ function mpWaApply(i){
  mpWaManualChoices.delete(mpWaParsed[i]);mpWaEditing=-1;mpRenderWaPreview();
 }
 
-function mpImportKey(j){const u=mpWoKey(j.unit);let d=mpWoKey(j.description||j.desc);if(u)d=d.replaceAll(u,'').replace(/\bunit\s*$/,'').trim();return u+'|'+d}
+function mpImportKey(j){const u=mpWoKey(j.unit);let d=mpWoKey(j.description||j.desc).replace(/\bjam\s*\d{1,2}[.:]\d{2}(?:\s*[-–]\s*\d{1,2}[.:]\d{2})?\b/g,'').trim();if(u)d=d.replaceAll(u,'').replace(/\bunit\s*$/,'').trim();return u+'|'+d.replace(/\s+/g,' ').trim()}
 function mpImportPeople(j){return [...new Set([j.tech,...(j.assistants||[])])]}
 function mpImportShared(a,b){return mpImportKey(a)===mpImportKey(b)&&!!mpWoKey(a.unit||b.unit)&&String(a.scheduled_time||a.time||'').slice(0,5)===String(b.scheduled_time||b.time||'').slice(0,5)}
 function mpWaMergeShared(){const rows=mpWaParsed;let found=0,merged=0;for(let i=0;i<rows.length;i++){for(let k=i+1;k<rows.length;k++){const a=rows[i],b=rows[k];if(a.work_date!==b.work_date||mpImportKey(a)!==mpImportKey(b)||a.tech===b.tech||a.status!==b.status||(a.wo_group_id&&b.wo_group_id&&a.wo_group_id!==b.wo_group_id))continue;if(String(a.scheduled_time||'')!==String(b.scheduled_time||''))continue;found++;if(!confirm('Gabungkan sebagai satu WO?\n'+a.description+'\n'+mpImportPeople(a).join(', ')+' + '+mpImportPeople(b).join(', ')))continue;a.assistants=[...new Set([...mpImportPeople(a),...mpImportPeople(b)])].filter(n=>n!==a.tech);if(b.wo_group_id)a.wo_group_id=b.wo_group_id;rows.splice(k--,1);merged++}}mpWaEditing=-1;mpRenderWaPreview();alert(!found?'Tidak ditemukan kandidat WO bersama dengan deskripsi, jam dan status yang cocok.':merged+' WO digabungkan dari '+found+' kandidat.')}
