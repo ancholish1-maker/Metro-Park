@@ -802,6 +802,25 @@ function mpMergeSharedWhatsApp(rows){
 let mpWaAttendance={};
 function mpWaAttendanceRows(){const day=new Date(mpWaDate+'T12:00:00').getDay();return mpAttPeople.map(person=>({work_date:mpWaDate,person,...(mpWaAttendance[person]||(mpWaParsed.some(j=>[j.tech,...(j.assistants||[])].includes(person))?{status:'Hadir',note:''}:{status:day===0?'Libur':day===6?'EO':'Belum terverifikasi',note:''}))}))}
 let mpWaMeta={absence:[],ignored:0},mpWaEditing=-1;
+function mpWaValidation(rows,existing,attendance,master,people,saved=[]){
+ const errors=[],warnings=[];let matched=0;const slots=new Map(),seen=new Set();
+ const issue=(list,i,msg)=>list.push({i,msg});
+ if(!master)issue(errors,-1,'Master unit belum dimuat.');
+ rows.forEach((j,i)=>{
+ const ids=[...new Set([...(j.unit?[mpNormalizeUnit(j.unit)]:[]),...mpUnitMatches(j.description)])];
+ for(const id of ids)if(master&&!master.includes(id))issue(errors,i,'ID unit tidak terdaftar: '+id);
+ for(const p of mpImportPeople(j)){
+ if(!people.includes(p))issue(errors,i,'Nama teknisi tidak dikenali: '+p);
+ const a=saved.find(x=>x.person===p)||attendance.find(x=>x.person===p);
+ if(a&&['Sakit','Izin','Cuti','EO','Libur'].includes(a.status))issue(errors,i,p+' berstatus '+a.status+' tetapi mendapat pekerjaan.');
+ const time=String(j.scheduled_time||'').slice(0,5);if(time){const key=p+'|'+time;const prior=slots.get(key);if(prior!==undefined&&mpImportKey(rows[prior])!==mpImportKey(j))issue(warnings,i,p+' memiliki dua pekerjaan pukul '+time);slots.set(key,i);
+ if(existing.some(x=>x.work_date===j.work_date&&String(x.time||x.scheduled_time||'').slice(0,5)===time&&mpImportPeople(x).includes(p)&&mpImportKey(x)!==mpImportKey(j)&&!(j.wo_group_id&&x.wo_group_id===j.wo_group_id)))issue(warnings,i,p+' memiliki plotting tersimpan lain pukul '+time);}
+ }
+ const key=mpImportKey(j)+'|'+j.tech;if(seen.has(key))issue(warnings,i,'Kemungkinan WO berulang dalam pratinjau.');seen.add(key);
+ if(existing.some(x=>x.work_date===j.work_date&&((j.wo_group_id&&x.wo_group_id===j.wo_group_id)||(mpImportKey(x)===mpImportKey(j)&&mpImportPeople(x).some(p=>mpImportPeople(j).includes(p))))))matched++;
+ });return {errors,warnings,matched};
+}
+function mpWaValidationHtml(){const v=mpWaValidation(mpWaParsed,mpJobs,mpWaAttendanceRows(),window.mpAllUnitIds,mpAttPeople);const item=(x,hard)=>'<div style="border:1px solid #e2e8f0;padding:10px;margin:8px 0;border-radius:10px;color:'+(hard?'#b91c1c':'#a16207')+'">'+mpEscape(x.msg)+(x.i>=0?'<br><button onclick="mpWaEditing='+x.i+';mpRenderWaPreview();document.getElementById(\'mpWaDesc\')?.scrollIntoView({block:\'center\'})">Periksa pekerjaan</button>':'')+'</div>';return '<h3>Validasi Plotting</h3><div class="card"><b>'+mpWaParsed.length+' pekerjaan · '+v.errors.length+' kesalahan · '+v.warnings.length+' peringatan</b>'+v.errors.map(x=>item(x,true)).join('')+v.warnings.map(x=>item(x,false)).join('')+'<p style="color:#16845b">'+v.matched+' WO terdeteksi sudah tersimpan.</p><p class="muted">'+(v.errors.length?'Perbaiki kesalahan sebelum menyimpan.':v.warnings.length?'Konfirmasi peringatan saat menyimpan.':'Tidak ada kesalahan pada pemeriksaan pratinjau.')+'</p></div>'}
 function mpRenderWaPreview(){
  mpWaParsed.forEach(mpWaAutoChoice);
  const p=document.getElementById('mpWaPreview');
@@ -816,7 +835,7 @@ function mpRenderWaPreview(){
  (entries.some(({j})=>mpWaWoCandidates(j).length)?'<h3>Deteksi WO Lanjutan</h3>'+entries.map(({j,i})=>mpWaWoCandidates(j).length?'<div class="card"><b>'+mpEscape(j.description)+'</b>'+mpWaWoChoice(j,i)+'</div>':'').join(''):'')+
  (mpWaMeta.absence.length?'<p class="muted">Catatan absensi (belum disimpan): '+mpEscape(mpWaMeta.absence.join('; '))+'</p>':'')+
  (mpWaMeta.ignored?'<p class="muted">'+mpWaMeta.ignored+' baris lain dilewati (termasuk tanggal/judul).</p>':'')+
- '<button style="width:100%;margin:8px 0" onclick="mpWaMergeShared()">Periksa & Gabungkan WO Bersama</button>'+'<h3>Pratinjau Kehadiran</h3>'+mpWaAttendanceRows().map(a=>'<div style="display:flex;justify-content:space-between;gap:12px;margin:8px 0"><span>'+mpEscape(a.person)+'</span><b>'+mpEscape(a.status)+'</b></div>').join('')+'<p class="muted">Kehadiran yang sudah tersimpan tidak ditimpa.</p><button class="primary" style="width:100%;min-height:50px" onclick="mpSaveWhatsApp()">Simpan Pekerjaan & Kehadiran</button>'+
+ '<button style="width:100%;margin:8px 0" onclick="mpWaMergeShared()">Periksa & Gabungkan WO Bersama</button>'+'<h3>Pratinjau Kehadiran</h3>'+mpWaAttendanceRows().map(a=>'<div style="display:flex;justify-content:space-between;gap:12px;margin:8px 0"><span>'+mpEscape(a.person)+'</span><b>'+mpEscape(a.status)+'</b></div>').join('')+'<p class="muted">Kehadiran yang sudah tersimpan tidak ditimpa.</p>'+mpWaValidationHtml()+'<button class="primary" style="width:100%;min-height:50px" onclick="mpSaveWhatsApp()">Simpan Pekerjaan & Kehadiran</button>'+
  '<button style="display:block;width:100%;min-height:48px;margin-top:10px;padding:10px 16px;border-radius:12px;font-size:16px" onclick="mpCopyWhatsApp()">Salin ke WhatsApp</button>';
 }
 function mpWoKey(v){return String(v||'').toLowerCase().replace(/\b(ma|mi)\/0+(\d+)\//g,'$1/$2/').replace(/\(\s*bareng[^)]*\)/g,'').replace(/\s+/g,' ').trim()}
@@ -852,10 +871,10 @@ function mpShowImportSummary(date,total,added,continued,updated,rows,newAttendan
 async function mpSaveWhatsApp(){
  if(!mpMayWrite()||mpWaSaving||!mpWaDate)return;
  if(mpWaParsed.some(j=>mpWaWoCandidates(j).length&&!j.wo_group_id&&mpWaManualChoices.get(j)!==mpWaDate)){alert('Konfirmasi kandidat WO lanjutan terlebih dahulu.');return}
- if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan dan kehadiran untuk '+mpWaDate+'?'))return;
+ 
  mpWaSaving=true;
  try{
- const rows=mpWaAttendanceRows();const processed=mpWaParsed.length;let added=0,continued=0,updated=0;
+ const rows=mpWaAttendanceRows();await mpLoadJobs();if(!mpJobsReady)throw Error('Data WO belum berhasil dimuat');const {data:savedAttendance,error:validationError}=await mpClient.from('personnel_attendance').select('person,status').eq('work_date',mpWaDate);if(validationError)throw validationError;const validation=mpWaValidation(mpWaParsed,mpJobs,rows,window.mpAllUnitIds,mpAttPeople,savedAttendance);if(validation.errors.length){alert(validation.errors.map(x=>x.msg).join('\n'));return}if(validation.warnings.length&&!confirm('Konfirmasi peringatan:\n'+validation.warnings.map(x=>x.msg).join('\n')+'\nLanjutkan?'))return;if(!confirm('Simpan '+mpWaParsed.length+' pekerjaan dan kehadiran untuk '+mpWaDate+'?'))return;const processed=mpWaParsed.length;let added=0,continued=0,updated=0;
  if(mpWaParsed.length){await mpLoadJobs();if(!mpJobsReady)throw Error('Data WO belum berhasil dimuat');const plan=mpImportPlan(mpWaParsed,mpJobs);continued=plan.fresh.filter(j=>j.wo_group_id).length;added=plan.fresh.length-continued;updated=plan.updates.size;for(const [id,assistants] of plan.updates){const {error}=await mpClient.from('technician_jobs').update({assistants}).eq('id',id);if(error)throw error}if(plan.fresh.length){const {error}=await mpClient.from('technician_jobs').insert(plan.fresh);if(error)throw error}mpWaParsed=[];mpWaAttendance=Object.fromEntries(rows.map(x=>[x.person,{status:x.status,note:x.note}]));}
  const {data:insertedAttendance,error}=await mpClient.from('personnel_attendance').upsert(rows,{onConflict:'work_date,person',ignoreDuplicates:true}).select('person');
  if(error){mpRenderWaPreview();alert('Pekerjaan sudah diproses, kehadiran gagal: '+error.message+'. Coba simpan kehadiran kembali.');return}
