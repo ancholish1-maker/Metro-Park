@@ -333,12 +333,14 @@ async function mpCheck(user) {
 
   if (error || !data || !data.is_active ||
       !["admin", "staff"].includes(data.role)) {
-    await mpClient.auth.signOut();
+    await mpClient.auth.signOut({scope:"local"});
     throw new Error("Akun tidak aktif atau tidak memiliki akses.");
   }
 
+  await mpLoadJobs();
+  if(!mpJobsReady) throw new Error("Data belum siap. Coba login kembali.");
   document.body.classList.remove("mp-locked");
-  mpLoadJobs().then(()=>mpLoadHistory()).catch(err=>mpNotice("Gagal memuat: "+err.message));
+  mpLoadHistory().catch(err=>mpNotice("Gagal memuat: "+err.message));
   document.getElementById("mp-login").style.display = "none";
 
   if (!document.getElementById("mp-logout")) {
@@ -346,7 +348,7 @@ async function mpCheck(user) {
     btn.id = "mp-logout";
     btn.textContent = "LOGOUT";
     btn.onclick = async () => {
-      await mpClient.auth.signOut();
+      await mpClient.auth.signOut({scope:"local"});
       location.reload();
     };
     const profile=document.createElement("div");profile.className="mp-profile";profile.innerHTML='<button type="button" class="mp-profile-toggle" aria-label="Menu profil" aria-expanded="false"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div class="mp-profile-menu" hidden><strong></strong><small></small></div>';
@@ -402,6 +404,7 @@ document.getElementById("mp-form").addEventListener("submit", async e => {
   }
 });
 
+mpClient.auth.onAuthStateChange((event)=>{if(event==="SIGNED_OUT"){document.body.classList.add("mp-locked");document.getElementById("mp-login").style.display="";mpJobsReady=false;mpIsAdmin=false;mpJobs=[];mpTrash=[];document.getElementById("mp-error").textContent="Sesi berakhir. Silakan login kembali.";}});
 (async () => {
   const { data } = await mpClient.auth.getSession();
   if (data.session) {
@@ -421,8 +424,8 @@ function mpCanonicalPerson(n){return ({'fredy':'Fredy A.','adi':'Adi K.','sugi':
 function mpMapJob(j){return {id:j.id,wo_group_id:j.wo_group_id||j.id,tech:mpCanonicalPerson(j.tech),unit:j.unit||'',desc:j.description,time:j.scheduled_time?j.scheduled_time.slice(0,5):'',status:j.status,assistants:Array.isArray(j.assistants)?j.assistants.map(mpCanonicalPerson):[],work_date:j.work_date,confirmation_result:j.confirmation_result||null,confirmed_at:j.confirmed_at||null,approval_status:j.approval_status||null}}
 async function mpLoadJobs(){
  mpJobsReady=false;mpNotice('Memuat data Supabase...');
- const {data:{user}}=await mpClient.auth.getUser();
- if(!user){mpNotice('Login dahulu untuk memuat plotting.');return}
+ const {data:{user},error:authError}=await mpClient.auth.getUser();
+ if(!user){mpNotice(authError?.message||"Login dahulu untuk memuat plotting.");document.body.classList.add("mp-locked");document.getElementById("mp-login").style.display="";return}
  const {data:profile,error:pe}=await mpClient.from('profiles').select('role,is_active').eq('id',user.id).single();
  if(pe||!profile?.is_active){mpNotice('Akun tidak memiliki akses.');return}
  mpIsAdmin=profile.role==='admin';
