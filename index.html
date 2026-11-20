@@ -514,9 +514,38 @@ function mpRenderTrash(){
  if(!root){root=document.createElement('details');root.id='mpTrashPanel';root.className='panel';document.getElementById('monitoring').append(root)}
  root.hidden=!mpIsAdmin;if(!mpIsAdmin){root.replaceChildren();return}
  const rows=mpLatestGroups(mpTrash.filter(j=>!mpHasUnitId(j)));
- root.innerHTML='<summary style="cursor:pointer;font-weight:700">Tempat Sampah ('+rows.length+')</summary>'+ (rows.length?rows.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(mpDateLabel(j.work_date))+'</p><button type="button" data-restore-job="'+mpEscape(j.id)+'">Pulihkan Pekerjaan</button></div>').join(''):'<p class="muted">Tempat sampah kosong.</p>');
+ root.innerHTML='<summary style="cursor:pointer;font-weight:700">Tempat Sampah ('+rows.length+')</summary>'+ (rows.length?'<button type="button" style="color:#b91c1c;margin:10px 0" data-purge-all>Kosongkan Tempat Sampah</button>'+rows.map(j=>'<div class="card" style="margin:10px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(mpDateLabel(j.work_date))+'</p><button type="button" data-restore-job="'+mpEscape(j.id)+'">Pulihkan Pekerjaan</button> <button type="button" style="color:#b91c1c" data-purge-job="'+mpEscape(j.id)+'">Hapus Permanen</button></div>').join(''):'<p class="muted">Tempat sampah kosong.</p>');
 }
 let mpTrashBusy=false;
+
+async function mpPurgeTrash(id){
+ if(!mpIsAdmin||!mpMayWrite()||mpTrashBusy)return;
+ const j=mpTrash.find(x=>x.id===id);
+ const rows=mpTrash.filter(x=>!mpHasUnitId(x)&&(!id||(j&&x.wo_group_id===j.wo_group_id)));
+ if(!rows.length)return;
+ if(!confirm((id?'Hapus permanen pekerjaan ini?':'Kosongkan seluruh tempat sampah?')+' Foto pekerjaan terkait ikut dihapus. Tidak dapat dipulihkan.'))return;
+ mpTrashBusy=true;
+ try{
+ for(const row of rows){
+ const {data:check,error:ce}=await mpClient.from('technician_jobs').select('id').eq('id',row.id).not('deleted_at','is',null).maybeSingle();
+ if(ce)throw ce;if(!check)throw Error('Pekerjaan sudah dipulihkan atau dihapus. Muat ulang.');
+ for(const stage of ['before','progress','after']){
+ const folder=row.id+'/'+stage;
+ while(true){
+ const {data,error}=await mpClient.storage.from('work-photos').list(folder,{limit:100});
+ if(error)throw error;const paths=(data||[]).filter(x=>x.id).map(x=>folder+'/'+x.name);if(!paths.length)break;
+ const {error:de}=await mpClient.storage.from('work-photos').remove(paths);if(de)throw de;
+ const {data:left,error:le}=await mpClient.storage.from('work-photos').list(folder,{limit:100});if(le)throw le;if((left||[]).some(x=>paths.includes(folder+'/'+x.name)))throw Error('Foto belum berhasil dihapus');
+ }
+ }
+ const {data,error}=await mpClient.from('technician_jobs').delete().eq('id',row.id).not('deleted_at','is',null).select('id');
+ if(error)throw error;if(data?.length!==1)throw Error('Penghapusan tidak terkonfirmasi');
+ }
+ alert('Penghapusan permanen berhasil.');
+ }catch(e){alert('Penghapusan belum tuntas: '+e.message)}finally{mpTrashBusy=false;await mpLoadJobs()}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-purge-job],[data-purge-all]');if(b)mpPurgeTrash(b.dataset.purgeJob||null)});
+
 async function mpChangeTrash(id,restore=false,whole=true){
  if(!mpMayWrite()||mpTrashBusy||(!mpIsAdmin&&restore))return;
  const j=(restore?mpTrash:mpJobs).find(x=>x.id===id);if(!j)return;
