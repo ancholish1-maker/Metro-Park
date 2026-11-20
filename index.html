@@ -392,7 +392,7 @@ document.getElementById("mp-form").addEventListener("submit", async e => {
 
   try {
     const { data, error } = await mpClient.auth.signInWithPassword({
-      email: document.getElementById("mp-email").value.trim().toLowerCase()==="olish-spv" ? "ancholish@gmail.com" : document.getElementById("mp-email").value.trim(),
+      email: document.getElementById("mp-email").value.trim().toLowerCase()==="olish-spv" ? "ancholish@gmail.com" : document.getElementById("mp-email").value.trim().toLowerCase()==="staff-fo1" ? "warungling10@gmail.com" : document.getElementById("mp-email").value.trim(),
       password: document.getElementById("mp-password").value
     });
     if (error) throw error;
