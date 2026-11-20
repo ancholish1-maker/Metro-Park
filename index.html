@@ -518,11 +518,12 @@ function mpRenderTrash(){
 }
 let mpTrashBusy=false;
 async function mpChangeTrash(id,restore=false,whole=true){
- if(!mpIsAdmin||!mpMayWrite()||mpTrashBusy)return;
+ if(!mpMayWrite()||mpTrashBusy||(!mpIsAdmin&&restore))return;
  const j=(restore?mpTrash:mpJobs).find(x=>x.id===id);if(!j)return;
  if(!confirm((restore?'Pulihkan pekerjaan ini?':'Pindahkan pekerjaan ke tempat sampah?')+'\\n'+j.desc))return;
  mpTrashBusy=true;
  try{const ids=(whole?(restore?mpTrash:mpJobs).filter(x=>x.wo_group_id===j.wo_group_id):[j]).map(x=>x.id);
+ if(!mpIsAdmin&&mpJobs.some(x=>ids.includes(x.id)&&x.status==='Done'))throw Error('Grup berisi pekerjaan selesai; hanya SPV dapat menghapusnya');
  const {data,error}=await mpClient.from('technician_jobs').update({deleted_at:restore?null:new Date().toISOString()}).in('id',ids).select('id');
  if(error)throw error;if(data?.length!==ids.length)throw Error('Perubahan tidak terkonfirmasi');await mpLoadJobs();}catch(e){alert('Gagal: '+e.message)}finally{mpTrashBusy=false}
 }
@@ -849,7 +850,7 @@ try{await mpLoadJobs();if(!mpJobsReady)throw Error('Data WO belum siap');const k
 function mpMayWrite(){if(!mpJobsReady){alert('Database belum siap.');return false}return true}
 async function mpAddJob(){if(!mpMayWrite())return;let d=mpAskJob();if(!d)return;const {error}=await mpClient.from('technician_jobs').insert(d);if(error)alert('Gagal simpan: '+error.message);else await mpLoadJobs()}
 async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j||(!mpIsAdmin&&j.status==='Done'))return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
-async function mpDeleteJob(id){if(!mpIsAdmin){alert('Hanya SPV dapat menghapus pekerjaan.');return}await mpChangeTrash(id,false,true)}
+async function mpDeleteJob(id){const j=mpJobs.find(x=>x.id===id);if(!j||!mpMayWrite())return;if(!mpIsAdmin&&j.status==='Done'){alert('Hanya SPV dapat menghapus pekerjaan selesai.');return}await mpChangeTrash(id,false,true)}
 let mpWaParsed=[];let mpWaDate=mpTodayDate();
 function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];mpWaEditing=-1;document.getElementById('mpWaPreview').replaceChildren()}
 function mpWaName(line){
