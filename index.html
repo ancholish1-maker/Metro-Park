@@ -446,7 +446,7 @@ function mpDisplayDateJobs(jobs){
  const helping=j.tech.toLowerCase()!==name.toLowerCase();
  return '<div class="card" style="margin:8px 0"><b>'+mpEscape(j.desc)+'</b><p class="muted">'+mpEscape(j.unit||'Non-unit')+' · '+mpEscape(j.time||'Tanpa jam')+'</p>'+
  (helping?'<p class="muted">Membantu '+mpEscape(j.tech)+'</p>':((j.assistants||[]).length?'<p class="muted">Pendamping: '+mpEscape(j.assistants.join(', '))+'</p>':''))+
- '<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpJobsReady?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+mpActivityButton(j)+mpWoHistory(j)+'</div>';
+ '<select aria-label="Status pekerjaan" onchange="mpSetJobStatus(\''+j.id+'\',this.value,this)" '+(mpJobsReady&&(mpIsAdmin||j.status!=='Done')?'':'disabled')+' style="min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font:inherit;background:#f8fafc"><option value="On Schedule" '+(j.status==='On Schedule'?'selected':'')+'>⚪ On Schedule</option><option value="On Progress" '+(j.status==='On Progress'?'selected':'')+'>🔴 On Progress</option><option value="Done" '+(j.status==='Done'?'selected':'')+'>🟢 Done</option></select> '+(mpJobsReady&&(mpIsAdmin||j.status!=='Done')?'<button onclick="mpEditJob(\''+j.id+'\')">Edit</button> <button onclick="mpDeleteJob(\''+j.id+'\')">Hapus</button>':'')+mpActivityButton(j)+mpWoHistory(j)+'</div>';
  }).join('');
  }).join('');
 }
@@ -527,9 +527,9 @@ async function mpChangeTrash(id,restore=false,whole=true){
  if(error)throw error;if(data?.length!==ids.length)throw Error('Perubahan tidak terkonfirmasi');await mpLoadJobs();}catch(e){alert('Gagal: '+e.message)}finally{mpTrashBusy=false}
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-trash-job],[data-restore-job]');if(b)mpChangeTrash(b.dataset.trashJob||b.dataset.restoreJob,!!b.dataset.restoreJob)});
-function mpEditMonitorButton(j){return mpHasUnitId(j)||j.status!=='Done'?'':'<button type="button" data-monitor-edit="'+mpEscape(j.id)+'">Edit Status</button>'}
+function mpEditMonitorButton(j){return !mpIsAdmin||mpHasUnitId(j)||j.status!=='Done'?'':'<button type="button" data-monitor-edit="'+mpEscape(j.id)+'">Edit Status</button>'}
 document.addEventListener('click',e=>{
- const b=e.target.closest('[data-monitor-edit]');if(!b||!mpMayWrite())return;
+ const b=e.target.closest('[data-monitor-edit]');if(!b||!mpIsAdmin||!mpMayWrite())return;
  const j=mpJobs.find(x=>x.id===b.dataset.monitorEdit);if(!j||mpHasUnitId(j)||j.status!=='Done')return;
  if(!mpIsAdmin&&j.approval_status==='pending'){alert('Pekerjaan sedang menunggu approval SPV.');return}
  const d=document.createElement('dialog');d.style.cssText='width:min(90vw,420px);border:1px solid #cbd5e1;border-radius:16px;padding:20px';
@@ -737,7 +737,7 @@ function mpRenderJobs(){mpRenderEngineering();mpCalendarRender();if(mpJobsReady&
 async function mpSetJobStatus(id,status,el){
  if(!mpMayWrite()||!['On Schedule','On Progress','Done'].includes(status)){mpRenderJobs();return}
  el.disabled=true;
- const target=mpJobs.find(j=>j.id===id);if(!mpIsAdmin&&target&&!mpHasUnitId(target)&&status==='Done'){await mpConfirmJob(id,'Selesai');mpRenderJobs();return} const {error}=await mpClient.from('technician_jobs').update({status}).eq('id',id);
+ const target=mpJobs.find(j=>j.id===id);if(!mpIsAdmin&&target?.status==='Done'){mpRenderJobs();return}if(!mpIsAdmin&&target&&!mpHasUnitId(target)&&status==='Done'){await mpConfirmJob(id,'Selesai');mpRenderJobs();return} const {error}=await mpClient.from('technician_jobs').update({status}).eq('id',id);
  if(error){alert('Gagal mengubah status: '+error.message);mpRenderJobs();return}
  const job=mpJobs.find(j=>String(j.id)===String(id));if(job)job.status=status;
  mpRenderJobs();
@@ -848,7 +848,7 @@ try{await mpLoadJobs();if(!mpJobsReady)throw Error('Data WO belum siap');const k
 
 function mpMayWrite(){if(!mpJobsReady){alert('Database belum siap.');return false}return true}
 async function mpAddJob(){if(!mpMayWrite())return;let d=mpAskJob();if(!d)return;const {error}=await mpClient.from('technician_jobs').insert(d);if(error)alert('Gagal simpan: '+error.message);else await mpLoadJobs()}
-async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j)return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
+async function mpEditJob(id){if(!mpMayWrite())return;let j=mpJobs.find(x=>x.id===id);if(!j||(!mpIsAdmin&&j.status==='Done'))return;let d=mpAskJob(j);if(!d)return;const {error}=await mpClient.from('technician_jobs').update(d).eq('id',id);if(error)alert('Gagal edit: '+error.message);else await mpLoadJobs()}
 async function mpDeleteJob(id){if(!mpIsAdmin){alert('Hanya SPV dapat menghapus pekerjaan.');return}await mpChangeTrash(id,false,true)}
 let mpWaParsed=[];let mpWaDate=mpTodayDate();
 function mpClearWhatsApp(){document.getElementById('mpWaInput').value='';mpWaParsed=[];mpWaEditing=-1;document.getElementById('mpWaPreview').replaceChildren()}
