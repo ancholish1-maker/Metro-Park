@@ -863,7 +863,7 @@ function mpAiParse(t,p={}){
  const floor=t.match(/\b(?:lantai|lt\.?)\s*(\d{1,2}|UG|LG|B1|B2)\b/i)||t.match(/\b(UG|LG|B1|B2)\b/i)||(p.ask==='floor'?t.match(/^(\d{1,2})$/):null);
  if(floor)n.floor=floor[1].toUpperCase().replace(/^0(?=\d)/,'');
  const f=mpAiFacilities.find(x=>t.toLowerCase().includes(x[0]));
- const a=t.match(/\b(?:selasar|koridor|depan lift|depan ruang sampah|lobi|playground|parkir|tangga|toilet|rooftop|roof)\b/i);
+ const a=t.match(/\b(?:ruang mesin lift|selasar|koridor|depan lift|depan ruang sampah|lobi|playground|parkir|tangga|toilet|rooftop|roof)\b/i);
  const room=t.match(/\bruang\s+pga(?:\s+di\s+pengelola)?\b/i);
  if(f)n.area=f[0];else if(room)n.area='ruang PGA'+(/pengelola/i.test(room[0])?' pengelola':'');else if(a)n.area=a[0].toLowerCase();else if(p.ask==='area'&&!tower&&!floor&&!u)n.area=t;
  const known=mpAiFacilities.find(x=>x[0]===n.area);
@@ -879,11 +879,11 @@ function mpAiValidate(p){
  if(f&&f[2]&&p.tower!==f[2])return ['tower',f[0]+' berada di '+f[2]+'. Mohon koreksi lokasi.'];
  if(p.area==='sky terrace'&&p.floor&&!['16','26'].includes(p.floor))return ['floor','Sky Terrace berada di lantai 16 atau 26. Mohon koreksi lantai.'];
  if(!p.tower)return ['tower','Tower mana, Manhattan, Milan, atau area bersama?'];
- if(!p.floor)return ['floor','Di lantai berapa?'];
+ if(!p.floor&&p.area!=='ruang mesin lift')return ['floor','Di lantai berapa?'];
  if(!p.area)return ['area','Pekerjaan berada di area mana?'];
  return null;
 }
-function mpAiDescription(p){const loc=p.unit||[p.tower,'Lantai '+p.floor,p.area].join(' / ');const clean=p.description.replace(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{1,4}\b/gi,'').replace(/\b(?:lantai|lt\.?)\s*(?:\d{1,2}|UG|LG|B1|B2)\b/gi,'').replace(/\b(?:tower\s+)?(?:manhattan|milan)\b/gi,'').replace(/\s+/g,' ').replace(/[.\s]+$/,'').trim();return clean+' | Lokasi: '+loc;}
+function mpAiDescription(p){const loc=p.unit||[p.tower,p.floor?'Lantai '+p.floor:null,p.area].filter(Boolean).join(' / ');const clean=p.description.replace(/\b(?:MA|MI)\/(?:\d{1,2}|UG|LG)\/[A-Z0-9]{1,4}\b/gi,'').replace(/\b(?:lantai|lt\.?)\s*(?:\d{1,2}|UG|LG|B1|B2)\b/gi,'').replace(/\b(?:tower\s+)?(?:manhattan|milan)\b/gi,'').replace(/\s+/g,' ').replace(/[.\s]+$/,'').trim();return clean+' | Lokasi: '+loc;}
 function mpAiMessage(t,own=false){const el=document.createElement('div');el.textContent=t;el.style='white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:12px;margin:8px 0;background:'+(own?'#164b80;color:white;margin-left:28px':'#edf2f7;color:#172b43;margin-right:20px');const log=document.getElementById('mpAiLog');log.append(el);log.scrollTop=log.scrollHeight}
 
 function mpAiDragSetup(b,p){
